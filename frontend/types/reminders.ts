@@ -1,0 +1,3 @@
+export type ReminderPolicyStatus = "ACTIVE"|"ARCHIVED";
+export type ReminderPolicy = {id:string;name:string;description:string|null;initialDelayMinutes:number;repeatIntervalMinutes:number;maximumReminders:number;businessHoursOnly:boolean;timezone:string;channels:Array<"EMAIL"|"IN_APP">;stopWhenCompleted:boolean;status:ReminderPolicyStatus;updatedAt:string;version:number};
+export type ScheduledReminder = {id:string;reminderPolicyId:string;projectId:string;onboardingId:string;stepId:string;status:"ACTIVE"|"COMPLETED"|"SUPPRESSED";nextRunAt:string|null;sentCount:number;lastSentAt:string|null;suppressionReason:string|null;version:number};

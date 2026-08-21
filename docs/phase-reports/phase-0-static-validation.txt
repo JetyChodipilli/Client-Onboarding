@@ -1,0 +1,22 @@
+== TOOLCHAIN ==
+openjdk version "21.0.11" 2026-04-21
+OpenJDK Runtime Environment (build 21.0.11+10-1-deb13u2-Debian)
+v22.16.0
+10.9.2
+maven: NOT INSTALLED
+docker: NOT INSTALLED
+
+== STRUCTURAL VALIDATION ==
+frontend/package.json: OK
+backend/pom.xml: OK
+docker-compose.yml: OK
+backend/src/main/resources/application.yml: OK
+.github/workflows/ci.yml: OK
+.github/dependabot.yml: OK
+PRD docx copy: OK
+
+== GIT WHITESPACE CHECK ==
+git diff --cached --check: OK
+
+== SECRET / SCOPE SCAN ==
+No committed secret signatures, JPA business entities, TODOs, or FIXMEs: OK

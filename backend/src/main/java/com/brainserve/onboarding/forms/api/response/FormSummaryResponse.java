@@ -1,0 +1,1 @@
+package com.brainserve.onboarding.forms.api.response; import com.brainserve.onboarding.forms.domain.model.FormStatus; import java.time.Instant; import java.util.UUID; public record FormSummaryResponse(UUID id,String name,String description,FormStatus status,Integer latestPublishedVersion,UUID latestPublishedVersionId,Integer draftVersion,Instant updatedAt,long version){}

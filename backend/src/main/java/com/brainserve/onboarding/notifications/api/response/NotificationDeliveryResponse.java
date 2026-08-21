@@ -1,0 +1,2 @@
+package com.brainserve.onboarding.notifications.api.response;
+import com.brainserve.onboarding.notifications.domain.model.*;import java.time.Instant;import java.util.UUID;public record NotificationDeliveryResponse(UUID id,UUID notificationId,NotificationChannel channel,String recipientAddress,NotificationDeliveryStatus status,int attemptCount,Instant nextAttemptAt,Instant sentAt,Instant deliveredAt,String lastError,Instant createdAt){}

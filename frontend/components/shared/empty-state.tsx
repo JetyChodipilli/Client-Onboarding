@@ -1,0 +1,1 @@
+export function EmptyState({title,description}:{title:string;description:string}){return <div className="px-6 py-14 text-center"><p className="text-sm font-semibold">{title}</p><p className="mx-auto mt-1 max-w-md text-sm leading-6 text-[hsl(var(--muted-foreground))]">{description}</p></div>}

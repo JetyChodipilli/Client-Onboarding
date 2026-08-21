@@ -1,0 +1,168 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-client_onboarding}
+      POSTGRES_USER: ${POSTGRES_USER:-client_onboarding}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-client_onboarding_local}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-client_onboarding} -d ${POSTGRES_DB:-client_onboarding}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+  mailpit:
+    profiles: ["full"]
+    image: axllent/mailpit:v1.27
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    restart: unless-stopped
+
+  minio:
+    profiles: ["full"]
+    image: quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio-local}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-me-minio-local}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  minio-init:
+    profiles: ["full"]
+    image: quay.io/minio/mc:RELEASE.2025-04-16T18-13-26Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >-
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minio-local} ${MINIO_ROOT_PASSWORD:-change-me-minio-local};
+      mc mb --ignore-existing local/${S3_BUCKET:-client-onboarding-assets};
+      mc anonymous set none local/${S3_BUCKET:-client-onboarding-assets};
+      mc mb --ignore-existing local/${CONTRACT_S3_BUCKET:-client-onboarding-contracts};
+      mc anonymous set none local/${CONTRACT_S3_BUCKET:-client-onboarding-contracts};
+      exit 0;"
+
+  clamav:
+    profiles: ["full"]
+    image: clamav/clamav:1.4.2
+    expose:
+      - "3310"
+    healthcheck:
+      test: ["CMD-SHELL", "printf 'PING\n' | nc -w 2 127.0.0.1 3310 | grep -q PONG"]
+      interval: 15s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+
+  backend:
+    profiles: ["full"]
+    build:
+      context: ./backend
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-client_onboarding}
+      POSTGRES_USER: ${POSTGRES_USER:-client_onboarding}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-client_onboarding_local}
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-client_onboarding}
+      APP_ALLOWED_ORIGINS: http://localhost:${FRONTEND_PORT:-3000}
+      PUBLIC_API_DOCS: ${PUBLIC_API_DOCS:-true}
+      APP_REQUIRE_EXPLICIT_SECRETS: ${APP_REQUIRE_EXPLICIT_SECRETS:-false}
+      APP_AUTH_JWT_SECRET_BASE64: ${APP_AUTH_JWT_SECRET_BASE64:-}
+      APP_AUTH_MFA_ENCRYPTION_KEY_BASE64: ${APP_AUTH_MFA_ENCRYPTION_KEY_BASE64:-}
+      SECURE_COOKIES: ${SECURE_COOKIES:-false}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      MAIL_FROM: ${MAIL_FROM:-no-reply@local.test}
+      FRONTEND_BASE_URL: http://localhost:${FRONTEND_PORT:-3000}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-SIGNED_SANDBOX}
+      PAYMENT_WEBHOOK_SECRET_BASE64: ${PAYMENT_WEBHOOK_SECRET_BASE64:-}
+      PAYMENT_CHECKOUT_BASE_URL: ${PAYMENT_CHECKOUT_BASE_URL:-http://localhost:3000/portal/payments/sandbox}
+      PAYMENT_WEBHOOK_MAX_AGE: ${PAYMENT_WEBHOOK_MAX_AGE:-5m}
+      PAYMENT_SESSION_TTL: ${PAYMENT_SESSION_TTL:-30m}
+      PAYMENT_MAX_WEBHOOK_BYTES: ${PAYMENT_MAX_WEBHOOK_BYTES:-262144}
+      CONTRACT_PROVIDER: ${CONTRACT_PROVIDER:-SIGNED_SANDBOX}
+      CONTRACT_WEBHOOK_SECRET_BASE64: ${CONTRACT_WEBHOOK_SECRET_BASE64:-}
+      CONTRACT_SIGNING_BASE_URL: ${CONTRACT_SIGNING_BASE_URL:-http://localhost:3000/portal/contracts/sandbox}
+      CONTRACT_WEBHOOK_MAX_AGE: ${CONTRACT_WEBHOOK_MAX_AGE:-5m}
+      CONTRACT_MAX_WEBHOOK_BYTES: ${CONTRACT_MAX_WEBHOOK_BYTES:-262144}
+      CONTRACT_MAX_SIGNED_DOCUMENT_BYTES: ${CONTRACT_MAX_SIGNED_DOCUMENT_BYTES:-20971520}
+      CONTRACT_STORAGE_ENABLED: ${CONTRACT_STORAGE_ENABLED:-true}
+      CONTRACT_S3_BUCKET: ${CONTRACT_S3_BUCKET:-client-onboarding-contracts}
+      ASSET_STORAGE_ENABLED: ${ASSET_STORAGE_ENABLED:-true}
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-client-onboarding-assets}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minio-local}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-minio-local}
+      S3_PATH_STYLE_ACCESS: "true"
+      MALWARE_SCAN_ENABLED: ${MALWARE_SCAN_ENABLED:-true}
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: 3310
+      APP_BOOTSTRAP_ENABLED: ${APP_BOOTSTRAP_ENABLED:-false}
+      APP_BOOTSTRAP_ORGANIZATION_NAME: ${APP_BOOTSTRAP_ORGANIZATION_NAME:-}
+      APP_BOOTSTRAP_ORGANIZATION_SLUG: ${APP_BOOTSTRAP_ORGANIZATION_SLUG:-}
+      APP_BOOTSTRAP_ADMIN_EMAIL: ${APP_BOOTSTRAP_ADMIN_EMAIL:-}
+      APP_BOOTSTRAP_ADMIN_DISPLAY_NAME: ${APP_BOOTSTRAP_ADMIN_DISPLAY_NAME:-}
+      APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:-}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+      clamav:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    profiles: ["full"]
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:${BACKEND_PORT:-8080}/api/v1}
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:${BACKEND_PORT:-8080}/api/v1}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+  minio_data:

@@ -1,0 +1,3 @@
+package com.brainserve.onboarding.contracts.infrastructure.persistence;
+import com.brainserve.onboarding.contracts.domain.model.ContractVersion;import java.util.*;import org.springframework.data.jpa.repository.JpaRepository;
+public interface ContractVersionRepository extends JpaRepository<ContractVersion,UUID>{Optional<ContractVersion> findByOrganizationIdAndId(UUID org,UUID id);Optional<ContractVersion> findFirstByOrganizationIdAndContractIdOrderByVersionNumberDesc(UUID org,UUID contractId);List<ContractVersion> findAllByOrganizationIdAndContractIdOrderByVersionNumberDesc(UUID org,UUID contractId);}

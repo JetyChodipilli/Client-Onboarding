@@ -1,0 +1,3 @@
+package com.brainserve.onboarding.billing.api.response;
+import com.brainserve.onboarding.billing.domain.model.*;import java.time.Instant;import java.util.*;
+public record ClientInvoiceResponse(UUID id,UUID projectId,String invoiceNumber,PaymentPolicy paymentPolicy,String currency,InvoiceStatus status,long subtotalMinor,long taxMinor,long totalMinor,long requiredAmountMinor,long amountPaidMinor,long amountRefundedMinor,long balanceDueMinor,String memo,Instant dueAt,Instant sentAt,Instant viewedAt,Instant paidAt,List<InvoiceItemResponse> items,List<ClientPaymentResponse> payments){public ClientInvoiceResponse{items=List.copyOf(items);payments=List.copyOf(payments);}}

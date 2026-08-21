@@ -1,0 +1,3 @@
+package com.brainserve.onboarding.contracts.infrastructure.persistence;
+import com.brainserve.onboarding.contracts.domain.model.*;import jakarta.persistence.LockModeType;import java.util.*;import org.springframework.data.domain.*;import org.springframework.data.jpa.repository.*;import org.springframework.data.repository.query.Param;
+public interface ContractTemplateRepository extends JpaRepository<ContractTemplate,UUID>{Optional<ContractTemplate> findByOrganizationIdAndId(UUID org,UUID id);Page<ContractTemplate> findAllByOrganizationId(UUID org,Pageable pageable);@Lock(LockModeType.PESSIMISTIC_WRITE)@Query("select t from ContractTemplate t where t.organizationId=:org and t.id=:id")Optional<ContractTemplate> findForUpdate(@Param("org")UUID org,@Param("id")UUID id);}

@@ -1,0 +1,2 @@
+package com.brainserve.onboarding.notifications.api.response;
+import java.time.Instant;import java.util.*;public record NotificationTemplateResponse(UUID id,String code,String name,String eventType,String recipientScope,String requiredPermission,String subjectTemplate,String bodyTemplate,String actionPathTemplate,List<String> channels,boolean mandatory,String status,Instant updatedAt,long version){}

@@ -1,0 +1,1 @@
+package com.brainserve.onboarding.forms.api.request; import jakarta.validation.Valid; import jakarta.validation.constraints.*; import java.util.List; public record SaveFormDraftRequest(@PositiveOrZero long version,@Size(max=500) String changeNote,@NotNull @Size(max=200) List<@Valid FormFieldDraftRequest> fields){}

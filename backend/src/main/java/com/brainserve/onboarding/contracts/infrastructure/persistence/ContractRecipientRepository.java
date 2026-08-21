@@ -1,0 +1,3 @@
+package com.brainserve.onboarding.contracts.infrastructure.persistence;
+import com.brainserve.onboarding.contracts.domain.model.*;import java.util.*;import org.springframework.data.jpa.repository.JpaRepository;
+public interface ContractRecipientRepository extends JpaRepository<ContractRecipient,UUID>{List<ContractRecipient> findAllByOrganizationIdAndContractIdOrderBySigningOrderAscIdAsc(UUID org,UUID contractId);Optional<ContractRecipient> findByOrganizationIdAndContractIdAndNormalizedEmail(UUID org,UUID contractId,String email);long countByOrganizationIdAndContractIdAndStatusNot(UUID org,UUID contractId,ContractRecipientStatus status);}

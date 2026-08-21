@@ -1,0 +1,1 @@
+package com.brainserve.onboarding.forms.api.request; import jakarta.validation.constraints.*; public record CreateFormRequest(@NotBlank @Size(max=180) String name,@Size(max=1000) String description,@Size(max=500) String initialChangeNote){}
