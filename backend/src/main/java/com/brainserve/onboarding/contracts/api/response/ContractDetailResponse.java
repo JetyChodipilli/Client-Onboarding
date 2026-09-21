@@ -1,3 +1,0 @@
-package com.brainserve.onboarding.contracts.api.response;
-import com.brainserve.onboarding.contracts.domain.model.ContractStatus;import java.time.Instant;import java.util.*;
-public record ContractDetailResponse(UUID id,UUID projectId,UUID clientId,UUID onboardingId,UUID stepId,UUID templateId,UUID templateVersionId,String subject,ContractStatus status,String provider,String providerDocumentId,String signingUrl,Instant expiresAt,Instant generatedAt,Instant sentAt,Instant viewedAt,Instant signedAt,Instant declinedAt,Instant createdAt,long version,ContractVersionResponse contractVersion,List<ContractRecipientResponse> recipients,List<ContractSignatureResponse> signatures){public ContractDetailResponse{recipients=List.copyOf(recipients);signatures=List.copyOf(signatures);}}

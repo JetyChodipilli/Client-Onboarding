@@ -1,2 +1,2 @@
-import { AppShell } from "@/components/layout/app-shell";
-export default function InternalLayout({children}:{children:React.ReactNode}){return <AppShell>{children}</AppShell>}
+import { InternalShell } from "@/features/settings/internal-shell";
+export default function AppLayout({ children }: { children: React.ReactNode }) { return <InternalShell>{children}</InternalShell>; }

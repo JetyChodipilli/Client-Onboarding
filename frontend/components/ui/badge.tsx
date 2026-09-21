@@ -1,20 +1,27 @@
-import type { ComponentProps } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import type * as React from "react";
 import { cn } from "@/lib/utils";
 
-const badgeVariants = cva("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold", {
-  variants: {
-    variant: {
-      neutral: "bg-white text-[hsl(var(--foreground))]",
-      success: "border-[hsl(var(--success)/.18)] bg-[hsl(var(--success-soft))] text-[hsl(var(--success))]",
-      warning: "border-[hsl(var(--warning)/.18)] bg-[hsl(var(--warning-soft))] text-[hsl(var(--warning))]",
-      info: "border-[hsl(var(--info)/.18)] bg-[hsl(var(--info-soft))] text-[hsl(var(--info))]",
-      danger: "border-[hsl(var(--danger)/.18)] bg-[hsl(var(--danger-soft))] text-[hsl(var(--danger))]",
+const badgeVariants = cva(
+  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold",
+  {
+    variants: {
+      tone: {
+        neutral: "border-border bg-muted text-muted-foreground",
+        success: "border-success/30 bg-success/12 text-success",
+        info: "border-info/30 bg-info/12 text-info",
+        warning: "border-warning/35 bg-warning/13 text-warning-foreground",
+      },
     },
+    defaultVariants: { tone: "neutral" },
   },
-  defaultVariants: { variant: "neutral" },
-});
+);
 
-export function Badge({ className, variant, ...props }: ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
-  return <span className={cn(badgeVariants({ variant }), className)} {...props} />;
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLSpanElement>,
+    VariantProps<typeof badgeVariants> {}
+
+export function Badge({ className, tone, ...props }: BadgeProps) {
+  return <span className={cn(badgeVariants({ tone }), className)} {...props} />;
 }
+

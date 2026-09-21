@@ -1,29 +1,29 @@
-# OS / IDE
+# Operating systems and editors
 .DS_Store
 .idea/
 .vscode/
 *.iml
 
-# Environment
+# Secrets and local environment
 .env
-.env.local
-.env.*.local
+.env.*
 !.env.example
+*.pem
+*.key
 
-# Java / Maven
+# Backend
 backend/target/
 *.log
 
-# Node / Next.js
+# Frontend
 frontend/node_modules/
 frontend/.next/
-frontend/out/
 frontend/coverage/
 frontend/playwright-report/
 frontend/test-results/
+frontend/.playwright-cli/
+frontend/tsconfig.tsbuildinfo
 
-# Local infra
-.postgres-data/
-
-# TypeScript incremental build metadata
-frontend/*.tsbuildinfo
+# Infrastructure
+*.pid
+tmp/

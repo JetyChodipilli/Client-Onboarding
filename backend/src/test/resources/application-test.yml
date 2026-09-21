@@ -1,0 +1,49 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:client_onboarding;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;INIT=CREATE SCHEMA IF NOT EXISTS app\;CREATE DOMAIN IF NOT EXISTS app.TIMESTAMPTZ AS TIMESTAMP WITH TIME ZONE\;SET SCHEMA app
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  flyway:
+    enabled: true
+    create-schemas: true
+    schemas: app
+    default-schema: app
+  jpa:
+    hibernate:
+      ddl-auto: none
+  main:
+    banner-mode: off
+
+logging:
+  structured:
+    format:
+      console:
+  level:
+    root: WARN
+
+app:
+  security:
+    cors-allowed-origins: http://localhost:3000
+    public-app-url: http://localhost:3000
+    session-cookie-secure: false
+    session-duration: 8h
+    session-idle-timeout: 30m
+    login-max-attempts: 5
+    login-lock-duration: 15m
+    token-duration: 30m
+    mfa-encryption-key: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=
+    mail-from: no-reply@test.local
+    smtp-host: localhost
+    smtp-port: 1025
+    smtp-username: ""
+    smtp-password: ""
+    smtp-starttls: false
+    smtp-auth: false
+    bootstrap:
+      enabled: false
+      organization-name: ""
+      organization-slug: ""
+      admin-name: ""
+      admin-email: ""
+      admin-password: ""

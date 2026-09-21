@@ -1,9 +1,0 @@
-package com.brainserve.onboarding.contracts.domain.model;
-import jakarta.persistence.*;import java.time.Instant;import java.util.UUID;
-@Entity @Table(name="contract_signatures",schema="client_onboarding")
-public class ContractSignature{
- @Id private UUID id;@Column(name="organization_id",nullable=false)private UUID organizationId;@Column(name="contract_id",nullable=false)private UUID contractId;@Column(name="contract_version_id",nullable=false)private UUID contractVersionId;@Column(name="recipient_id",nullable=false)private UUID recipientId;@Column(nullable=false,length=40)private String provider;@Column(name="provider_event_id",nullable=false,length=180)private String providerEventId;@Column(name="provider_signature_id",length=180)private String providerSignatureId;@Column(name="signatory_name",nullable=false,length=160)private String signatoryName;@Column(name="signatory_email",nullable=false,length=320)private String signatoryEmail;@Column(name="signed_at",nullable=false)private Instant signedAt;@Column(name="created_at",nullable=false)private Instant createdAt;
- protected ContractSignature(){}
- public ContractSignature(UUID id,UUID org,UUID contractId,UUID versionId,UUID recipientId,String provider,String eventId,String signatureId,String name,String email,Instant signedAt,Instant createdAt){this.id=id;this.organizationId=org;this.contractId=contractId;this.contractVersionId=versionId;this.recipientId=recipientId;this.provider=provider;this.providerEventId=eventId;this.providerSignatureId=signatureId;this.signatoryName=name;this.signatoryEmail=email;this.signedAt=signedAt;this.createdAt=createdAt;}
- public UUID getId(){return id;} public UUID getRecipientId(){return recipientId;} public String getSignatoryName(){return signatoryName;} public String getSignatoryEmail(){return signatoryEmail;} public Instant getSignedAt(){return signedAt;}
-}

@@ -1,18 +1,23 @@
 "use client";
 
+import { AlertTriangle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function Error({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <main className="grid min-h-screen place-items-center px-5 py-12">
-      <section className="w-full max-w-lg rounded-2xl border bg-[hsl(var(--surface))] p-6 shadow-[var(--shadow-card)] sm:p-8">
-        <p className="text-sm font-semibold text-[hsl(var(--danger))]">Unable to load this page</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Something went wrong.</h1>
-        <p className="mt-3 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
-          Try the request again. If the problem continues, keep the request ID from the API response for support.
+    <main className="page-shell grid min-h-dvh place-items-center py-16">
+      <section className="glass-surface max-w-xl rounded-xl p-8 text-center sm:p-12">
+        <AlertTriangle aria-hidden="true" className="mx-auto size-9 text-danger" />
+        <h1 className="mt-6 text-3xl font-bold tracking-tight">This page could not be loaded.</h1>
+        <p className="mt-4 text-muted-foreground">
+          Retry the page. If the problem continues, share the request time with your support contact.
         </p>
-        <Button className="mt-6" onClick={reset}>Try again</Button>
+        <Button className="mt-8" onClick={reset}>
+          <RotateCcw aria-hidden="true" />
+          Try again
+        </Button>
       </section>
     </main>
   );
 }
+

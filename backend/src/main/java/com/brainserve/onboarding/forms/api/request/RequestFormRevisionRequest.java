@@ -1,1 +1,0 @@
-package com.brainserve.onboarding.forms.api.request; import jakarta.validation.constraints.*; public record RequestFormRevisionRequest(@PositiveOrZero long version,@NotBlank @Size(max=2000) String reason){}

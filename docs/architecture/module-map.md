@@ -1,68 +1,53 @@
-# Domain / Module Map
+# Domain Module Map
 
-## Implemented ownership through Phase 11
+## Ownership and dependencies
 
-| Module | Primary ownership |
-|---|---|
-| `auth` | internal/client authentication, sessions, credentials, MFA/security tokens |
-| `identity` | global user identities |
-| `organization` | organizations, memberships, RBAC, employee invitations |
-| `client` | client companies, contacts, client-user relationships |
-| `servicecatalog` | tenant service catalog |
-| `project` | project aggregate, team, project lifecycle and READY/ACTIVE transitions |
-| `workflow` | versioned workflow templates, validated conditions/dependencies, step definitions |
-| `onboarding` | immutable workflow snapshots, onboarding/step lifecycle, readiness and final review |
-| `forms` | form/version/field/submission/review lifecycle |
-| `assets` | asset requirements, secure versions, scan/review lifecycle |
-| `access` | versioned platform-access guides, client submission/internal verification |
-| `billing` | invoice aggregate/items/policies and reconciliation projection |
-| `payments` | provider sessions, payment ledger/refunds/webhook processing |
-| `contracts` | legal templates/versions, contracts, recipients, signatures and signed-document evidence |
-| `tasks` | manual/system/workflow tasks and assignment lifecycle |
-| `notifications` | templates, in-app notifications, preferences and delivery records/workers |
-| `reminders` | reminder policies, schedules, responsibility routing and suppression |
-| `integrations` | shared provider/webhook/event-processing boundaries |
-| `audit` | append-oriented privileged/state-changing audit evidence |
-| `common` | API, observability, security principals, outbox/activity technical primitives |
-| `reporting` | **reserved for Phase 12; not implemented** |
+| Module | Owns | Allowed direct dependencies |
+|---|---|---|
+| `common` | API envelopes, errors, IDs, time, observability primitives | None |
+| `identity` | User identity and account profile | `common` |
+| `organization` | Tenants, memberships, roles, permissions | `common`, `identity`, `audit`; auth implements its security port |
+| `auth` | Authentication, sessions/tokens, verification, reset, MFA | `common`, `identity`, `organization`, `audit` |
+| `client` | Client companies, contacts and future client-user linkage | `common`, `audit` |
+| `servicecatalog` | Organization service definitions | `common`, `audit` |
+| `project` | Projects, members, lifecycle and activity timeline | `common`, `audit`, `organization`, `client`, `servicecatalog` |
+| `workflow` | Templates, versions, steps, conditions and dependencies | `common`, `audit`, `servicecatalog` |
+| `onboarding` | Workflow snapshots, instances, step instances and readiness | `common`, `audit`, `project`, `workflow` |
+| `forms` | Form templates/versions, submissions, answers and review | `common`, `organization`, `project`, `workflow` SPI |
+| `assets` | Requirements, metadata, versions, scan/review state and download authorization | `common`, `organization`, `project`, `workflow` SPI |
+| `access` | Access types, guides, requests and verification | `common`, `organization`, `project`, `workflow` SPI |
+| `billing` | Invoices, items, policies, balances and refunds | `common`, `organization`, `project`, `workflow` SPI |
+| `payments` | Payment transactions, provider ports and verified webhooks | `common`, `billing`, `integrations` |
+| `contracts` | Templates, immutable versions, recipients, signatures and callbacks | `common`, `organization`, `project`, `workflow` SPI, `integrations` |
+| `tasks` | Manual/system/workflow tasks and assignments | `common`, `organization`, `project` |
+| `notifications` | Templates, notifications, preferences and delivery attempts | `common`, `organization` |
+| `reminders` | Policies, schedules, suppression and retries | `common`, `notifications`, read-only onboarding port |
+| `integrations` | Connection metadata and provider adapter contracts | `common`, `organization` |
+| `reporting` | Read models, metrics, filters and exports | `common`, read-only query ports |
+| `audit` | Append-oriented audit and activity records | `common`, consumes domain/outbox events |
 
-## Dependency rule
+## Dependency rules
+
+- `common` cannot depend on a business module.
+- Domain packages cannot depend on controllers, JPA adapters or provider SDKs.
+- Feature modules implement the workflow handler SPI; the workflow engine does not branch on feature types through repeated `if/else` chains.
+- The onboarding module evaluates snapshot/step state, not invoice/contract tables directly.
+- Reporting uses query ports or dedicated read models and never mutates source modules.
+- Audit consumes immutable event facts and is not called as an editable business repository.
+- Cross-module database writes are prohibited.
+- Top-level module slices must remain cycle-free; ArchUnit enforces this on every build.
+- Synchronous security audit appends are an explicit dependency for identity-changing transactions.
+
+## Backend package shape
+
+Significant modules use only the layers they need:
 
 ```text
-api -> application -> domain
-             |
-             +-> own infrastructure/persistence
-
-module.application -> sibling.application public port only
+module/
+├── api/               HTTP requests, responses and controllers
+├── application/       use cases, commands, queries and transactions
+├── domain/            model, policies, events and repository ports
+└── infrastructure/    persistence, integration and configuration adapters
 ```
 
-A module must not import another module's persistence repository or write another module's table directly. Cross-module orchestration uses public application services/ports and, for asynchronous effects, the transactional outbox.
-
-Examples:
-- `project` resolves clients/services/members through public lookup services.
-- workflow step initialization/transition extensions allow Forms/Assets/Access/Tasks to own their domain records without workflow table mutation.
-- final-review revision handlers let owning feature modules reopen supported records while Onboarding owns review lifecycle/evidence.
-- Onboarding calls the controlled Project activation boundary to mark a project READY after successful approval.
-
-## Data ownership by migration
-
-- V1 foundation.
-- V2 identity/auth/RBAC/audit.
-- V3 clients/services/projects/activity.
-- V4 workflow/onboarding/outbox.
-- V5 client invitations/auth/project grants.
-- V6 forms.
-- V7 assets.
-- V8 billing/payments/webhook ledger.
-- V9 contracts/e-signature evidence.
-- V10 platform access.
-- V11 tasks/notifications/reminders.
-- V12 final-review evidence and project readiness/activation guards.
-
-## Event boundary
-
-Reliable asynchronous side effects use PostgreSQL transactional outbox + bounded workers. Kafka remains deferred until an explicit throughput/decomposition requirement justifies it.
-
-## Reporting read model (Phase 12)
-
-`reporting` is a read-only cross-module projection. It may query PostgreSQL source-of-truth tables through tenant-scoped SQL for dashboards and analytics, but it owns no business lifecycle and may not mutate another module's tables. `REPORT_READ` is the server-authoritative permission boundary.
+Tiny foundation modules may use fewer folders; empty layers are not created for appearance.

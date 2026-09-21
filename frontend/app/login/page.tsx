@@ -1,3 +1,6 @@
-import { AuthShell } from "@/components/auth/auth-shell";
+import type { Metadata } from "next";
+import { AuthShell } from "@/features/auth/auth-shell";
 import { LoginForm } from "@/features/auth/login-form";
-export default function LoginPage() { return <AuthShell eyebrow="Secure sign in" title="Welcome back" description="Use your organization workspace and verified work account to continue."><LoginForm /></AuthShell>; }
+
+export const metadata: Metadata = { title: "Sign in" };
+export default function LoginPage() { return <AuthShell eyebrow="Secure workspace" title="Welcome back." description="Sign in to manage your organization’s team, roles, and security baseline."><LoginForm /></AuthShell>; }
