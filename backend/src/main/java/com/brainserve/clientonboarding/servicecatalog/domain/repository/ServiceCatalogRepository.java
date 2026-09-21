@@ -1,6 +1,6 @@
 package com.brainserve.clientonboarding.servicecatalog.domain.repository;
 
-import com.brainserve.clientonboarding.common.api.PageSlice;
+import com.brainserve.clientonboarding.common.domain.model.PageSlice;
 import com.brainserve.clientonboarding.servicecatalog.domain.model.ServiceDefinition;
 import java.time.Instant;
 import java.util.Optional;

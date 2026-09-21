@@ -1,7 +1,7 @@
 package com.brainserve.clientonboarding.servicecatalog.api;
 
 import com.brainserve.clientonboarding.common.api.ApiSuccess;
-import com.brainserve.clientonboarding.common.api.PageSlice;
+import com.brainserve.clientonboarding.common.domain.model.PageSlice;
 import com.brainserve.clientonboarding.common.observability.RequestIds;
 import com.brainserve.clientonboarding.common.observability.RequestMetadata;
 import com.brainserve.clientonboarding.common.security.CurrentPrincipal;

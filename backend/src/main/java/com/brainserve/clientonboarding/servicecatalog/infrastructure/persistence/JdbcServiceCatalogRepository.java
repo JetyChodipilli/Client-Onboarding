@@ -3,7 +3,7 @@ package com.brainserve.clientonboarding.servicecatalog.infrastructure.persistenc
 import static com.brainserve.clientonboarding.common.infrastructure.persistence.JdbcValues.instant;
 import static com.brainserve.clientonboarding.common.infrastructure.persistence.JdbcValues.timestamp;
 
-import com.brainserve.clientonboarding.common.api.PageSlice;
+import com.brainserve.clientonboarding.common.domain.model.PageSlice;
 import com.brainserve.clientonboarding.servicecatalog.domain.model.ServiceDefinition;
 import com.brainserve.clientonboarding.servicecatalog.domain.repository.ServiceCatalogRepository;
 import java.time.Instant;

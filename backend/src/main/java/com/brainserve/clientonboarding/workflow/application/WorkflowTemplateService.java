@@ -1,7 +1,7 @@
 package com.brainserve.clientonboarding.workflow.application;
 
 import com.brainserve.clientonboarding.audit.application.AuditService;
-import com.brainserve.clientonboarding.common.api.PageSlice;
+import com.brainserve.clientonboarding.common.domain.model.PageSlice;
 import com.brainserve.clientonboarding.common.error.DomainException;
 import com.brainserve.clientonboarding.common.observability.RequestMetadata;
 import com.brainserve.clientonboarding.common.security.TenantPrincipal;

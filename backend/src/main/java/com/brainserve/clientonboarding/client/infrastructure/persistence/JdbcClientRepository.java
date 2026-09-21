@@ -6,7 +6,7 @@ import static com.brainserve.clientonboarding.common.infrastructure.persistence.
 import com.brainserve.clientonboarding.client.domain.model.ClientContact;
 import com.brainserve.clientonboarding.client.domain.model.ClientRecord;
 import com.brainserve.clientonboarding.client.domain.repository.ClientRepository;
-import com.brainserve.clientonboarding.common.api.PageSlice;
+import com.brainserve.clientonboarding.common.domain.model.PageSlice;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;

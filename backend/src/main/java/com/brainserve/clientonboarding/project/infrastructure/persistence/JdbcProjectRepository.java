@@ -3,7 +3,7 @@ package com.brainserve.clientonboarding.project.infrastructure.persistence;
 import static com.brainserve.clientonboarding.common.infrastructure.persistence.JdbcValues.instant;
 import static com.brainserve.clientonboarding.common.infrastructure.persistence.JdbcValues.timestamp;
 
-import com.brainserve.clientonboarding.common.api.PageSlice;
+import com.brainserve.clientonboarding.common.domain.model.PageSlice;
 import com.brainserve.clientonboarding.project.domain.model.ActivityEntry;
 import com.brainserve.clientonboarding.project.domain.model.ProjectMember;
 import com.brainserve.clientonboarding.project.domain.model.ProjectRecord;

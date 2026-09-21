@@ -2,7 +2,7 @@ package com.brainserve.clientonboarding.project.application;
 
 import com.brainserve.clientonboarding.audit.application.AuditService;
 import com.brainserve.clientonboarding.client.domain.repository.ClientRepository;
-import com.brainserve.clientonboarding.common.api.PageSlice;
+import com.brainserve.clientonboarding.common.domain.model.PageSlice;
 import com.brainserve.clientonboarding.common.error.DomainException;
 import com.brainserve.clientonboarding.common.observability.RequestMetadata;
 import com.brainserve.clientonboarding.common.security.TenantPrincipal;

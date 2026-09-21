@@ -1,6 +1,6 @@
 package com.brainserve.clientonboarding.workflow.domain.repository;
 
-import com.brainserve.clientonboarding.common.api.PageSlice;
+import com.brainserve.clientonboarding.common.domain.model.PageSlice;
 import com.brainserve.clientonboarding.workflow.domain.model.TemplateStep;
 import com.brainserve.clientonboarding.workflow.domain.model.TemplateVersion;
 import com.brainserve.clientonboarding.workflow.domain.model.WorkflowTemplate;

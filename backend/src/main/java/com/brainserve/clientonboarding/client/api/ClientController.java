@@ -4,7 +4,7 @@ import com.brainserve.clientonboarding.client.application.ClientService;
 import com.brainserve.clientonboarding.client.domain.model.ClientContact;
 import com.brainserve.clientonboarding.client.domain.model.ClientRecord;
 import com.brainserve.clientonboarding.common.api.ApiSuccess;
-import com.brainserve.clientonboarding.common.api.PageSlice;
+import com.brainserve.clientonboarding.common.domain.model.PageSlice;
 import com.brainserve.clientonboarding.common.observability.RequestIds;
 import com.brainserve.clientonboarding.common.observability.RequestMetadata;
 import com.brainserve.clientonboarding.common.security.CurrentPrincipal;

@@ -1,4 +1,4 @@
-package com.brainserve.clientonboarding.common.api;
+package com.brainserve.clientonboarding.common.domain.model;
 
 import java.util.List;
 import java.util.Map;

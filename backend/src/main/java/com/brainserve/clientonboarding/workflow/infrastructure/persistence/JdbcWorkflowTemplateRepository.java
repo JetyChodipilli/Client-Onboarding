@@ -3,7 +3,7 @@ package com.brainserve.clientonboarding.workflow.infrastructure.persistence;
 import static com.brainserve.clientonboarding.common.infrastructure.persistence.JdbcValues.instant;
 import static com.brainserve.clientonboarding.common.infrastructure.persistence.JdbcValues.timestamp;
 
-import com.brainserve.clientonboarding.common.api.PageSlice;
+import com.brainserve.clientonboarding.common.domain.model.PageSlice;
 import com.brainserve.clientonboarding.workflow.domain.model.TemplateStep;
 import com.brainserve.clientonboarding.workflow.domain.model.TemplateVersion;
 import com.brainserve.clientonboarding.workflow.domain.model.WorkflowCondition;
