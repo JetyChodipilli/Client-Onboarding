@@ -1,0 +1,805 @@
+openapi: 3.1.0
+info:
+  title: Client Onboarding Platform API
+  version: 0.4.0-phase-3
+  description: Identity, tenant-scoped client/project core, and versioned workflow engine.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Authentication
+  - name: Organizations
+  - name: RBAC
+  - name: Audit
+  - name: Clients
+  - name: Services
+  - name: Projects
+  - name: Workflows
+  - name: Onboarding
+  - name: Foundation
+paths:
+  /api/v1/auth/csrf:
+    get:
+      tags: [Authentication]
+      summary: Initialize the cookie-to-header CSRF token
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate an internal user in one organization
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '202': { description: MFA verification or enrollment is required }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/auth/mfa/complete:
+    post:
+      tags: [Authentication]
+      summary: Complete TOTP or one-time recovery-code verification
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challengeToken, code]
+              properties:
+                challengeToken: { type: string, maxLength: 200 }
+                code: { type: string, maxLength: 40 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/auth/me:
+    get:
+      tags: [Authentication]
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Revoke the current session and issue a rotated session token
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/auth/forgot-password:
+    post:
+      tags: [Authentication]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccountLookupRequest' }
+      responses:
+        '202': { description: Generic accepted response }
+  /api/v1/auth/reset-password:
+    post:
+      tags: [Authentication]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TokenPasswordRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '400': { $ref: '#/components/responses/Error' }
+  /api/v1/auth/verify-email:
+    post:
+      tags: [Authentication]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TokenPasswordRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/auth/accept-invitation:
+    post:
+      tags: [Authentication]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TokenPasswordRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/auth/email-verification/resend:
+    post:
+      tags: [Authentication]
+      summary: Resend an eligible internal organization invitation without account disclosure
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccountLookupRequest' }
+      responses:
+        '202': { description: Generic accepted response }
+  /api/v1/organizations/{organizationId}:
+    parameters:
+      - name: organizationId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Organizations]
+      security: [{ cookieAuth: [] }]
+      summary: Read the authenticated tenant only
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [Organizations]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, version]
+              properties:
+                name: { type: string, maxLength: 160 }
+                version: { type: integer, format: int64, minimum: 0 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/permissions:
+    get:
+      tags: [RBAC]
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/roles:
+    get:
+      tags: [RBAC]
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    post:
+      tags: [RBAC]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoleRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+  /api/v1/roles/{roleId}:
+    patch:
+      tags: [RBAC]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - name: roleId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoleRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/roles/{roleId}/archive:
+    post:
+      tags: [RBAC]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - name: roleId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: version
+          in: query
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/organization-members:
+    get:
+      tags: [Organizations]
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    post:
+      tags: [Organizations]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, displayName, roleId]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                displayName: { type: string, maxLength: 160 }
+                roleId: { type: string, format: uuid }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+  /api/v1/organization-members/{membershipId}:
+    patch:
+      tags: [Organizations]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - name: membershipId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [roleId, status, version]
+              properties:
+                roleId: { type: string, format: uuid }
+                status: { type: string, enum: [ACTIVE, SUSPENDED, ARCHIVED] }
+                version: { type: integer, format: int64, minimum: 0 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/audit-logs:
+    get:
+      tags: [Audit]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/clients:
+    get:
+      tags: [Clients]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: status, in: query, schema: { type: string, enum: [PROSPECT, ACTIVE, INACTIVE, ARCHIVED] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Clients]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ClientRequest' } } } }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/clients/{clientId}:
+    parameters: [{ name: clientId, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      tags: [Clients]
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [Clients]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ClientRequest' } } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/clients/{clientId}/contacts:
+    parameters: [{ name: clientId, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      tags: [Clients]
+      security: [{ cookieAuth: [] }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Clients]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ContactRequest' } } } }
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /api/v1/clients/{clientId}/archive:
+    post:
+      tags: [Clients]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: clientId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: version, in: query, required: true, schema: { type: integer, format: int64, minimum: 0 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/client-contacts/{contactId}:
+    patch:
+      tags: [Clients]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: contactId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ContactRequest' } } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/client-contacts/{contactId}/archive:
+    post:
+      tags: [Clients]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: contactId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: version, in: query, required: true, schema: { type: integer, format: int64, minimum: 0 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/services:
+    get:
+      tags: [Services]
+      security: [{ cookieAuth: [] }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Services]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ServiceRequest' } } } }
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /api/v1/services/{serviceId}:
+    parameters: [{ name: serviceId, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      tags: [Services]
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [Services]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ServiceRequest' } } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/services/{serviceId}/archive:
+    post:
+      tags: [Services]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: serviceId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: version, in: query, required: true, schema: { type: integer, format: int64, minimum: 0 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/projects:
+    get:
+      tags: [Projects]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { name: search, in: query, schema: { type: string, maxLength: 200 } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: clientId, in: query, schema: { type: string, format: uuid } }
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Projects]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ProjectRequest' } } } }
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /api/v1/projects/{projectId}:
+    parameters: [{ name: projectId, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      tags: [Projects]
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [Projects]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ProjectRequest' } } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/projects/{projectId}/{action}:
+    post:
+      tags: [Projects]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: projectId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [hold, resume, complete, cancel, archive] } }
+        - { name: version, in: query, required: true, schema: { type: integer, format: int64, minimum: 0 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/projects/{projectId}/members:
+    parameters: [{ name: projectId, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      tags: [Projects]
+      security: [{ cookieAuth: [] }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Projects]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [membershipId, assignmentRole]
+              properties:
+                membershipId: { type: string, format: uuid }
+                assignmentRole: { type: string, minLength: 1, maxLength: 80 }
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /api/v1/projects/{projectId}/members/{memberId}:
+    delete:
+      tags: [Projects]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: projectId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: memberId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/projects/{projectId}/activities:
+    get:
+      tags: [Projects]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { name: projectId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/workflow-templates:
+    get:
+      tags: [Workflows]
+      security: [{ cookieAuth: [] }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Workflows]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/WorkflowTemplateRequest' } } } }
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /api/v1/workflow-templates/{templateId}:
+    get:
+      tags: [Workflows]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ name: templateId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/workflow-templates/{templateId}/archive:
+    post:
+      tags: [Workflows]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: templateId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: version, in: query, required: true, schema: { type: integer, format: int64, minimum: 0 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/workflow-templates/{templateId}/versions:
+    parameters: [{ name: templateId, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      tags: [Workflows]
+      security: [{ cookieAuth: [] }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Workflows]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /api/v1/workflow-template-versions/{versionId}/steps:
+    put:
+      tags: [Workflows]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: versionId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/WorkflowStepsRequest' } } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/workflow-template-versions/{versionId}:
+    get:
+      tags: [Workflows]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ name: versionId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/workflow-template-versions/{versionId}/publish:
+    post:
+      tags: [Workflows]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: versionId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: version, in: query, required: true, schema: { type: integer, format: int64, minimum: 0 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/projects/{projectId}/onboarding:
+    parameters: [{ name: projectId, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      tags: [Onboarding]
+      security: [{ cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Onboarding]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: Idempotency-Key, in: header, required: false, schema: { type: string, minLength: 8, maxLength: 120 } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/OnboardingStartRequest' } } } }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/onboardings/{onboardingId}:
+    get:
+      tags: [Onboarding]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ name: onboardingId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/onboarding-steps/{stepId}/transition:
+    post:
+      tags: [Onboarding]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: stepId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/StepTransitionRequest' } } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/platform/info:
+    get:
+      tags: [Foundation]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /health/live:
+    get:
+      tags: [Foundation]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /health/ready:
+    get:
+      tags: [Foundation]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '503': { $ref: '#/components/responses/Error' }
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: BOS_SESSION
+  parameters:
+    CsrfHeader:
+      name: X-XSRF-TOKEN
+      in: header
+      required: true
+      schema: { type: string }
+  responses:
+    Success:
+      description: Standard success envelope
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/SuccessEnvelope' }
+    Error:
+      description: Standard error envelope
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password, organizationSlug]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, maxLength: 200 }
+        organizationSlug: { type: string, maxLength: 80 }
+    AccountLookupRequest:
+      type: object
+      required: [email, organizationSlug]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        organizationSlug: { type: string, maxLength: 80 }
+    TokenPasswordRequest:
+      type: object
+      required: [token, password]
+      properties:
+        token: { type: string, maxLength: 200 }
+        password: { type: string, minLength: 12, maxLength: 200 }
+    RoleRequest:
+      type: object
+      required: [name, permissions, version]
+      properties:
+        name: { type: string, maxLength: 100 }
+        description: { type: string, maxLength: 240 }
+        permissions:
+          type: array
+          uniqueItems: true
+          items: { type: string, maxLength: 80 }
+        version: { type: integer, format: int64, minimum: 0 }
+    ClientRequest:
+      type: object
+      additionalProperties: false
+      required: [name, status, version]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        legalName: { type: string, maxLength: 200 }
+        status: { type: string, enum: [PROSPECT, ACTIVE, INACTIVE] }
+        website: { type: string, maxLength: 500 }
+        email: { type: string, format: email, maxLength: 254 }
+        phone: { type: string, maxLength: 50 }
+        notes: { type: string, maxLength: 2000 }
+        version: { type: integer, format: int64, minimum: 0 }
+    ContactRequest:
+      type: object
+      additionalProperties: false
+      required: [name, email, primary, version]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        email: { type: string, format: email, maxLength: 254 }
+        phone: { type: string, maxLength: 50 }
+        jobTitle: { type: string, maxLength: 120 }
+        primary: { type: boolean }
+        version: { type: integer, format: int64, minimum: 0 }
+    ServiceRequest:
+      type: object
+      additionalProperties: false
+      required: [code, name, status, version]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 80 }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: string, maxLength: 1000 }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
+        version: { type: integer, format: int64, minimum: 0 }
+    ProjectRequest:
+      type: object
+      additionalProperties: false
+      required: [clientId, serviceId, name, version]
+      properties:
+        clientId: { type: string, format: uuid }
+        serviceId: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: string, maxLength: 2000 }
+        valueMinor: { type: integer, format: int64, minimum: 0 }
+        currencyCode: { type: string, pattern: '^[A-Z]{3}$' }
+        targetStartDate: { type: string, format: date }
+        version: { type: integer, format: int64, minimum: 0 }
+    WorkflowTemplateRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 180 }
+        description: { type: string, maxLength: 1000 }
+        serviceId: { type: string, format: uuid }
+    WorkflowStepsRequest:
+      type: object
+      additionalProperties: false
+      required: [version, steps]
+      properties:
+        version: { type: integer, format: int64, minimum: 0 }
+        steps:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: object
+            required: [stepKey, name, stepType, displayOrder, required, blocking, clientVisible, requiresReview, dependencyMode, allowSkip, allowReopen]
+            properties:
+              id: { type: string, format: uuid }
+              stepKey: { type: string, maxLength: 80 }
+              name: { type: string, maxLength: 180 }
+              stepType: { type: string }
+              displayOrder: { type: integer, minimum: 0 }
+              required: { type: boolean }
+              blocking: { type: boolean }
+              clientVisible: { type: boolean }
+              requiresReview: { type: boolean }
+              dependencyMode: { type: string, enum: [NONE, ALL, ANY] }
+              condition:
+                type: object
+                additionalProperties: false
+                required: [field, operator, value]
+                properties:
+                  field:
+                    type: string
+                    enum: [SERVICE_CODE, PROJECT_VALUE_MINOR, CLIENT_STATUS, CURRENCY_CODE]
+                  operator:
+                    type: string
+                    enum: [EQUALS, NOT_EQUALS, GREATER_THAN, GREATER_THAN_OR_EQUAL, IN]
+                  value: { type: string, minLength: 1, maxLength: 300 }
+              assignedRole: { type: string, maxLength: 100 }
+              dueAfterHours: { type: integer, minimum: 0, maximum: 87600 }
+              reminderPolicyId: { type: string, format: uuid }
+              allowSkip: { type: boolean }
+              allowReopen: { type: boolean }
+              configuration: { type: object, additionalProperties: true }
+              dependencyStepIds: { type: array, uniqueItems: true, items: { type: string, format: uuid } }
+    OnboardingStartRequest:
+      type: object
+      additionalProperties: false
+      required: [templateVersionId, projectVersion]
+      properties:
+        templateVersionId: { type: string, format: uuid }
+        projectVersion: { type: integer, format: int64, minimum: 0 }
+    StepTransitionRequest:
+      type: object
+      additionalProperties: false
+      required: [targetStatus, version]
+      properties:
+        targetStatus:
+          type: string
+          enum: [LOCKED, AVAILABLE, IN_PROGRESS, SUBMITTED, UNDER_REVIEW, NEEDS_REVISION, COMPLETED, SKIPPED, FAILED, CANCELLED]
+        version: { type: integer, format: int64, minimum: 0 }
+    SuccessEnvelope:
+      type: object
+      required: [success, data, meta, requestId]
+      properties:
+        success: { const: true }
+        data: {}
+        meta: { type: object, additionalProperties: true }
+        requestId: { type: string, format: uuid }
+    ErrorEnvelope:
+      type: object
+      required: [success, error, requestId]
+      properties:
+        success: { const: false }
+        error:
+          type: object
+          required: [code, message, fieldErrors]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            fieldErrors:
+              type: array
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field: { type: string }
+                  message: { type: string }
+        requestId: { type: string, format: uuid }

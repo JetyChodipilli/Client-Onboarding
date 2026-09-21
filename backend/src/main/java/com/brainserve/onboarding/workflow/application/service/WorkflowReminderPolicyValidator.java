@@ -1,1 +1,0 @@
-package com.brainserve.onboarding.workflow.application.service;import java.util.UUID;/** Controlled boundary for validating reminder-policy references without exposing reminder persistence to workflow. */public interface WorkflowReminderPolicyValidator {void validate(UUID organizationId,UUID reminderPolicyId);}

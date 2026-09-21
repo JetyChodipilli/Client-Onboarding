@@ -1,9 +1,13 @@
 export default function Loading() {
   return (
-    <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-12 sm:px-8 lg:px-10" aria-busy="true">
-      <div className="h-10 w-52 animate-pulse rounded-xl bg-black/5" />
-      <div className="mt-20 h-16 max-w-3xl animate-pulse rounded-2xl bg-black/5" />
-      <div className="mt-4 h-7 max-w-xl animate-pulse rounded-xl bg-black/5" />
+    <main className="page-shell min-h-dvh py-20" aria-busy="true" aria-label="Loading page">
+      <div className="h-10 w-48 animate-pulse rounded-md bg-muted" />
+      <div className="mt-16 max-w-4xl space-y-5">
+        <div className="h-16 w-full animate-pulse rounded-lg bg-muted" />
+        <div className="h-16 w-4/5 animate-pulse rounded-lg bg-muted" />
+        <div className="h-6 w-2/3 animate-pulse rounded-md bg-muted" />
+      </div>
     </main>
   );
 }
+

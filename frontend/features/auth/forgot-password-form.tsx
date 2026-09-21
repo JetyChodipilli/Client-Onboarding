@@ -1,21 +1,29 @@
 "use client";
+
+import { LoaderCircle } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
-import { ArrowLeft, Loader2, Mail } from "lucide-react";
+import { FormEvent, useState } from "react";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { FormMessage } from "@/components/auth/form-message";
-import { apiRequest, ApiClientError } from "@/services/api-client";
+import { ApiClientError } from "@/lib/api-client";
+import { authApi } from "./auth-api";
 
 export function ForgotPasswordForm() {
-  const [email,setEmail]=useState(""); const [organizationSlug,setOrganizationSlug]=useState(""); const [busy,setBusy]=useState(false); const [message,setMessage]=useState<string|null>(null); const [error,setError]=useState<string|null>(null);
-  async function submit(e:React.FormEvent){e.preventDefault();setBusy(true);setError(null);try{const result=await apiRequest<{message:string}>("/auth/forgot-password",{method:"POST",body:JSON.stringify({email,organizationSlug})});setMessage(result.message);}catch(err){setError(err instanceof ApiClientError?err.message:"Request could not be completed.");}finally{setBusy(false)}}
-  return <form className="space-y-5" onSubmit={submit}>
-    <div className="space-y-2"><Label htmlFor="workspace">Workspace</Label><Input id="workspace" value={organizationSlug} onChange={e=>setOrganizationSlug(e.target.value)} placeholder="acme-studio" required /></div>
-    <div className="space-y-2"><Label htmlFor="email">Work email</Label><Input id="email" type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} required /></div>
-    {message&&<FormMessage tone="success">{message}</FormMessage>}{error&&<FormMessage>{error}</FormMessage>}
-    <Button className="w-full" size="lg" disabled={busy}>{busy?<Loader2 className="size-4 animate-spin"/>:<Mail className="size-4"/>} Send reset instructions</Button>
-    <Button variant="ghost" className="w-full" asChild><Link href="/login"><ArrowLeft className="size-4"/>Back to sign in</Link></Button>
-  </form>
+  const [email, setEmail] = useState("");
+  const [slug, setSlug] = useState("");
+  const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setPending(true); setError("");
+    try { const result = await authApi.forgot(email, slug); setMessage(result.message); }
+    catch (cause) { setError(cause instanceof ApiClientError ? cause.message : "The request could not be completed."); }
+    finally { setPending(false); }
+  }
+
+  if (message) return <><h2 className="text-2xl font-bold">Check your email</h2><Alert tone="success" className="mt-5">{message}</Alert><Link href="/login" className="mt-6 inline-flex min-h-11 items-center rounded-md text-sm font-semibold text-primary hover:underline">Return to sign in</Link></>;
+  return <><h2 className="text-2xl font-bold">Reset your password</h2><p className="mt-2 text-sm text-muted-foreground">We’ll send a single-use link if the account is eligible.</p>{error && <Alert tone="error" className="mt-5">{error}</Alert>}<form className="mt-7 space-y-5" onSubmit={submit}><FormField label="Work email" htmlFor="email"><Input required id="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} /></FormField><FormField label="Organization slug" htmlFor="slug"><Input required id="slug" autoComplete="organization" value={slug} onChange={(event) => setSlug(event.target.value.toLowerCase())} /></FormField><Button type="submit" variant="accent" size="lg" className="w-full" disabled={pending}>{pending && <LoaderCircle aria-hidden="true" className="animate-spin" />}{pending ? "Sending…" : "Send reset link"}</Button><Link href="/login" className="block text-center text-sm text-primary hover:underline">Return to sign in</Link></form></>;
 }

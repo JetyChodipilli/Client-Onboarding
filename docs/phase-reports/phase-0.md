@@ -1,157 +1,92 @@
-# Phase 0 Report — Architecture & Foundation
-
-Date: 2026-08-21
+# Phase 0 Reverification Report
 
 ## PHASE COMPLETED
 
-**Phase 0 — Architecture & Foundation: implementation complete; Definition-of-Done verification is blocked in the current execution environment.**
-
-No Phase 1 identity, tenancy, client, project, or onboarding business implementation was added.
+Phase 0 architecture and foundation implementation is complete. Its browser-execution gate cannot be
+re-run in this workspace because no Chromium executable is installed and the browser download endpoint
+returns a non-archive response. The committed CI browser job remains the executable gate.
 
 ## IMPLEMENTED
 
-- Git monorepo foundation with `backend/`, `frontend/`, `docs/`, CI, Docker Compose, environment template, Makefile, README, and AGENTS instructions.
-- Java 21 / Spring Boot 4.0 foundation using Spring MVC, Security, JPA, Validation, Actuator, Flyway, PostgreSQL, OpenAPI, Prometheus registry, and Testcontainers.
-- Next.js 16 / React 19 / TypeScript / Tailwind / shadcn-style primitive foundation.
-- Consistent success/error API envelope and global exception handling.
-- Request/correlation IDs, MDC logging context, response tracing headers, and structured-log configuration.
-- Liveness/readiness endpoints; readiness validates PostgreSQL connectivity.
-- Deny-by-default backend security. Only liveness/readiness are anonymous by default; OpenAPI docs are an explicit local/deployment opt-in.
-- CORS allowlist foundation, security headers, and a minimal CSP baseline.
-- Design tokens, semantic colors, spacing/radius/elevation guidance, accessible focus treatment, loading/error/not-found states, and a Phase-0-only responsive foundation screen.
-- Architecture documentation: module map, conceptual domain model, dependency rules, independent state-machine boundaries, DB/API/security/testing/frontend/design-system conventions, threat model, risk register, and ADRs.
-- CI includes backend verification, frontend dependency audit/lint/typecheck/unit/build/E2E, and backend/frontend container builds.
-- Dependabot foundation for Maven, npm, Docker images, and GitHub Actions.
+- Modular-monolith repository, module map, state-machine boundaries and dependency conventions.
+- Spring Boot and Next.js foundations, standard API envelopes, global errors and environment config.
+- Request/correlation IDs, structured logs, health/readiness, metrics and OpenAPI.
+- PostgreSQL/Flyway, Compose, non-root/read-only container definitions and GitHub Actions.
+- Semantic design tokens, responsive primitives, loading/error/not-found states and accessibility rules.
+
+The re-review corrected automatic Flyway startup, canonical correlation-ID validation, module-cycle
+enforcement, unexpected-error metrics, frontend/backend CSP baselines and writable Next.js cache
+configuration for the read-only container.
 
 ## DATABASE MIGRATIONS
 
-- `V1__foundation_schema.sql`
-  - creates the `client_onboarding` PostgreSQL schema only;
-  - intentionally creates no Phase 1+ business tables.
-- Hibernate is configured with `ddl-auto=validate`; Flyway owns schema changes.
+- `V1__foundation.sql` creates the `app` schema boundary and foundation marker.
+- Phase 0 plus the additive Phase 1 migration apply cleanly to a fresh embedded PostgreSQL 17.10
+  instance; the schema reaches version 2 without editing V1.
 
 ## API ENDPOINTS
 
+- `GET /api/v1/platform/info`
 - `GET /health/live`
 - `GET /health/ready`
-- OpenAPI generation foundation at `/v3/api-docs` when `PUBLIC_API_DOCS=true`.
-- Swagger UI foundation at `/swagger-ui.html` when `PUBLIC_API_DOCS=true`.
-- All other application routes are denied in Phase 0.
+- `/v3/api-docs` and `/swagger-ui.html`
 
 ## UI SCREENS
 
-- Responsive Phase 0 architecture/foundation status page.
-- Global loading state.
-- Global recoverable error state.
-- 404/not-found state.
-- No business dashboard, authentication screen, client screen, project screen, or onboarding screen was implemented.
+- Responsive foundation/status page.
+- Route loading, recoverable error and not-found experiences.
+- Light/dark theme control, skip navigation, visible focus and reduced-motion support.
 
 ## TESTS ADDED
 
-Backend:
-
-- `CorrelationIdFilterTest`
-  - safe external request/correlation IDs are propagated;
-  - unsafe IDs are replaced;
-  - MDC is cleared after the request.
-- `ArchitectureTest`
-  - API packages cannot depend directly on persistence implementations;
-  - domain packages cannot depend on API packages.
-- `FoundationApplicationIT`
-  - PostgreSQL 17 Testcontainer clean startup;
-  - Flyway migration during application startup;
-  - liveness/readiness validation;
-  - deny-by-default API security validation.
-
-Frontend:
-
-- React Testing Library/Vitest test for the reusable button primitive.
-- Playwright foundation scenario with desktop, tablet, and mobile projects.
+- Context, foundation API, correlation-ID, module-boundary, PostgreSQL migration and full runtime smoke tests.
+- Foundation component/page tests in Vitest and React Testing Library.
+- Docker-backed duplicate PostgreSQL migration coverage remains configured and skips when Docker is absent.
 
 ## PLAYWRIGHT SCENARIOS
 
-Defined, but not executable in this runtime because npm packages and browser binaries cannot be downloaded:
-
-- foundation page renders;
-- Phase 0 scope indicator is present;
-- future business-action control is disabled;
-- no horizontal overflow at responsive widths;
-- no browser console errors;
-- failure screenshots and first-retry traces are configured.
+- Foundation scenarios cover console/page errors, horizontal overflow, keyboard navigation, theme
+  switching and reduced motion across desktop, tablet, mobile portrait and mobile landscape.
+- Discovery succeeds; execution is blocked before page launch by the missing browser executable.
 
 ## SECURITY VALIDATION
 
-Implemented/structurally reviewed:
-
-- deny-by-default application routes;
-- no hard-coded production secrets;
-- API docs are not public by default;
-- actuator metrics are not anonymous;
-- request/correlation header validation prevents unbounded/log-injection-style IDs;
-- consistent non-stacktrace API errors;
-- CORS origin allowlist foundation;
-- browser frame/object/base/form security headers;
-- threat model covers tenant escape, authorization, token theft/replay, webhook forgery, payment/contract tampering, unsafe uploads, SSRF, mass assignment, injection/XSS, brute force, and insider misuse;
-- tenant-scoped repository/application conventions are documented for Phase 1+.
-
-Security release gate:
-
-- On 2026-08-20, Next.js announced an August security release scheduled for 2026-08-26 that includes a critical vulnerability fix for supported lines. The frontend is kept on the Next.js 16.3 release line so the patched 16.3.x can be resolved and locked once published. Do not treat the frontend dependency baseline as production-release-ready until that patch is installed, a lockfile is committed, and the security/build suite passes.
+- Deny-by-default routes, exact CORS allowlists, CSRF/session security, CSP/security headers, canonical
+  request IDs and generic errors are enforced.
+- Untrusted forwarding headers are not accepted as audit/rate-limit source addresses.
+- Shared code cannot depend on business modules; top-level module cycles fail the build.
 
 ## DESIGN PATTERNS USED
 
-- Modular Monolith
-- Repository/Application-Service boundary conventions (documented for owning phases)
-- Adapter/Strategy provider boundaries (ADR; implementation deferred to owning phases)
-- Independent State Machine boundaries
-- Transactional Outbox architecture decision (implementation deferred to first reliable event-producing phase)
-- Global API envelope/error handling
-- Deny-by-default security
-- Test pyramid + Testcontainers integration foundation
+- Modular monolith, ports/adapters, centralized exception advice and request filters.
+- Architecture decision records reserve handler strategies, immutable snapshots and transactional
+  outbox behavior for the phases that need them; no placeholder business implementation was added.
 
 ## KNOWN LIMITATIONS
 
-Execution-environment blockers, not hidden as successful verification:
-
-1. Maven is not installed in the current runtime, so `mvn verify`, Spring Boot startup, and Java dependency resolution could not run.
-2. Docker/Compose is not installed, so PostgreSQL/Testcontainers and clean-database Flyway execution could not run here.
-3. Outbound npm registry DNS resolution fails with `EAI_AGAIN`, so frontend dependencies, `package-lock.json`, lint/typecheck/unit/build, Playwright browser installation, and E2E execution could not run here.
-4. Because a lockfile could not be generated, CI currently uses `npm install`; once registry access is available, generate and commit `package-lock.json`, then switch CI/Makefile/Docker back to `npm ci` for reproducible installs.
-5. The announced Next.js 2026-08-26 critical security patch must be installed and locked before a production release gate can pass.
-6. The named Codex UI/UX skills are not exposed as callable tools in this runtime; the design-system requirements were implemented directly from the supplied build instructions and PRD. A later Codex run with those skills should audit the same tokens/patterns without expanding Phase 0 scope.
+- Local Playwright launch is unavailable; Chromium installation fails because the downloaded response
+  is not a valid archive.
+- Docker/Compose image execution is unavailable because this workspace has no Docker CLI/daemon.
+  The CI pipeline installs Chromium and builds both images.
 
 ## PRD ITEMS COMPLETED
 
-Phase-0/foundation portions completed in source:
-
-- modular-monolith repository and module boundaries;
-- PostgreSQL/Flyway migration ownership;
-- API conventions and OpenAPI foundation;
-- request/correlation IDs and logging foundation;
-- liveness/readiness health checks;
-- security-deny-by-default baseline and threat-model foundation;
-- test infrastructure and CI definition;
-- frontend architecture and design-system foundation;
-- architecture decision records and conventions;
-- Docker/Compose development topology definition;
-- independent state-machine/readiness boundaries documented without implementing business logic.
+- Phase 0 repository, backend/frontend, design system, database/migration, API/observability, test,
+  container, CI and documentation foundations.
 
 ## PRD ITEMS REMAINING
 
-- All Phase 1–13 business functionality and its phase-specific migrations/tests/UI.
-- Runtime verification of Phase 0 build, clean Flyway migration, startup, logs, and browser suite once a capable toolchain/network is available.
-- Frontend lockfile plus the announced Next.js security patch.
+- Local browser and container execution proof in a capable environment.
+- Phase 2 through Phase 13 product capabilities. Phase 1 is documented separately.
 
 ## BUILD STATUS
 
-**FAIL — NOT RUN TO COMPLETION because Maven is unavailable and npm dependency resolution is blocked by DNS/network restrictions. Structural config validation passed.**
+PASS
 
 ## TEST STATUS
 
-**FAIL — NOT RUN TO COMPLETION because Maven/Docker/npm dependencies are unavailable in this runtime. Test suites are present but must execute before the phase satisfies the Definition of Done.**
+FAIL — all locally executable foundation tests pass; the mandatory browser suite cannot launch.
 
 ## READY FOR NEXT PHASE
 
-**NO.**
-
-Per the strict Definition of Done, Phase 1 should not begin until Phase 0 builds, tests, clean migrations, startup, log inspection, and Playwright validation pass in an environment with Maven, Docker, and npm registry access, and the announced Next.js critical security patch is applied.
+NO — the browser/container CI gates must pass before another phase begins.

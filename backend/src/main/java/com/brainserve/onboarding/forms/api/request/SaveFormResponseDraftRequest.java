@@ -1,1 +1,0 @@
-package com.brainserve.onboarding.forms.api.request; import com.fasterxml.jackson.databind.JsonNode; import jakarta.validation.constraints.*; import java.util.Map; public record SaveFormResponseDraftRequest(@PositiveOrZero long version,@NotNull @Size(max=200) Map<@NotBlank @Size(max=80) String,JsonNode> answers){}

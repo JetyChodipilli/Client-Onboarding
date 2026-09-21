@@ -1,168 +1,96 @@
-server:
-  port: ${BACKEND_PORT:8080}
-  shutdown: graceful
-  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:NONE}
-  error:
-    include-message: never
-    include-stacktrace: never
-
 spring:
   application:
     name: client-onboarding-backend
+  autoconfigure:
+    exclude: org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:client_onboarding}}
-    username: ${POSTGRES_USER:client_onboarding}
-    password: ${POSTGRES_PASSWORD:client_onboarding_local}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/client_onboarding?currentSchema=app}
+    username: ${DATABASE_USERNAME:client_onboarding}
+    password: ${DATABASE_PASSWORD:local-development-only}
     hikari:
-      maximum-pool-size: ${DB_MAX_POOL_SIZE:10}
-      minimum-idle: ${DB_MIN_IDLE:2}
+      maximum-pool-size: ${DATABASE_POOL_MAX_SIZE:10}
+      minimum-idle: ${DATABASE_POOL_MIN_IDLE:1}
       connection-timeout: 5000
       validation-timeout: 2000
-      data-source-properties:
-        # pgjdbc prepared-statement reuse + batch rewrite reduce parse/round-trip overhead without
-        # changing transaction semantics or introducing a second source of truth.
-        reWriteBatchedInserts: true
-        preparedStatementCacheQueries: ${DB_PREPARED_STATEMENT_CACHE_QUERIES:256}
-        preparedStatementCacheSizeMiB: ${DB_PREPARED_STATEMENT_CACHE_MIB:5}
-        prepareThreshold: ${DB_PREPARE_THRESHOLD:3}
-  jpa:
-    open-in-view: false
-    hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        default_schema: client_onboarding
-        default_batch_fetch_size: ${HIBERNATE_DEFAULT_BATCH_FETCH_SIZE:50}
-        order_inserts: true
-        order_updates: true
-        query:
-          fail_on_pagination_over_collection_fetch: true
-          in_clause_parameter_padding: true
-        jdbc:
-          time_zone: UTC
-          batch_size: ${HIBERNATE_JDBC_BATCH_SIZE:25}
   flyway:
     enabled: true
     create-schemas: true
-    default-schema: client_onboarding
-    schemas: client_onboarding
+    schemas: app
+    default-schema: app
     locations: classpath:db/migration
     validate-migration-naming: true
-  mvc:
-    problemdetails:
-      enabled: false
-  mail:
-    host: ${SMTP_HOST:localhost}
-    port: ${SMTP_PORT:1025}
-    username: ${SMTP_USERNAME:}
-    password: ${SMTP_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
     properties:
-      mail.smtp.auth: ${SMTP_AUTH:false}
-      mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
-      mail.smtp.connectiontimeout: 5000
-      mail.smtp.timeout: 5000
-      mail.smtp.writetimeout: 5000
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  jackson:
+    default-property-inclusion: non_null
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus
-  endpoint:
-    health:
-      probes:
-        enabled: true
-      show-details: never
-  metrics:
-    tags:
-      application: ${spring.application.name}
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
 
 springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
-    operations-sorter: method
-    tags-sorter: alpha
+    operations-sorter: alpha
+  paths-to-match: /api/v1/**,/health/**
 
-app:
-  security:
-    allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:3000}
-    public-api-docs: ${PUBLIC_API_DOCS:false}
-    jwt-secret-base64: ${APP_AUTH_JWT_SECRET_BASE64:}
-    mfa-encryption-key-base64: ${APP_AUTH_MFA_ENCRYPTION_KEY_BASE64:}
-    require-explicit-secrets: ${APP_REQUIRE_EXPLICIT_SECRETS:true}
-    access-token-ttl: ${ACCESS_TOKEN_TTL:15m}
-    refresh-token-ttl: ${REFRESH_TOKEN_TTL:14d}
-    password-reset-ttl: ${PASSWORD_RESET_TTL:30m}
-    email-verification-ttl: ${EMAIL_VERIFICATION_TTL:24h}
-    mfa-challenge-ttl: ${MFA_CHALLENGE_TTL:5m}
-    client-invitation-ttl: ${CLIENT_INVITATION_TTL:72h}
-    secure-cookies: ${SECURE_COOKIES:true}
-    max-login-attempts: ${MAX_LOGIN_ATTEMPTS:5}
-    login-lock-duration: ${LOGIN_LOCK_DURATION:15m}
-    token-issuer: ${TOKEN_ISSUER:client-onboarding-platform}
-    token-audience: ${TOKEN_AUDIENCE:client-onboarding-api}
-  bootstrap:
-    enabled: ${APP_BOOTSTRAP_ENABLED:false}
-    organization-name: ${APP_BOOTSTRAP_ORGANIZATION_NAME:}
-    organization-slug: ${APP_BOOTSTRAP_ORGANIZATION_SLUG:}
-    admin-email: ${APP_BOOTSTRAP_ADMIN_EMAIL:}
-    admin-display-name: ${APP_BOOTSTRAP_ADMIN_DISPLAY_NAME:}
-    admin-password: ${APP_BOOTSTRAP_ADMIN_PASSWORD:}
-  mail:
-    from: ${MAIL_FROM:no-reply@local.test}
-    frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
-  payments:
-    provider: ${PAYMENT_PROVIDER:DISABLED}
-    webhook-secret-base64: ${PAYMENT_WEBHOOK_SECRET_BASE64:}
-    checkout-base-url: ${PAYMENT_CHECKOUT_BASE_URL:http://localhost:3000/portal/payments/sandbox}
-    webhook-max-age: ${PAYMENT_WEBHOOK_MAX_AGE:5m}
-    session-ttl: ${PAYMENT_SESSION_TTL:30m}
-    max-webhook-bytes: ${PAYMENT_MAX_WEBHOOK_BYTES:262144}
-    overdue-scan-delay: ${PAYMENT_OVERDUE_SCAN_DELAY:5m}
-  contracts:
-    provider: ${CONTRACT_PROVIDER:DISABLED}
-    webhook-secret-base64: ${CONTRACT_WEBHOOK_SECRET_BASE64:}
-    signing-base-url: ${CONTRACT_SIGNING_BASE_URL:http://localhost:3000/portal/contracts/sandbox}
-    webhook-max-age: ${CONTRACT_WEBHOOK_MAX_AGE:5m}
-    max-webhook-bytes: ${CONTRACT_MAX_WEBHOOK_BYTES:262144}
-    max-signed-document-bytes: ${CONTRACT_MAX_SIGNED_DOCUMENT_BYTES:20971520}
-    storage:
-      enabled: ${CONTRACT_STORAGE_ENABLED:false}
-      endpoint: ${S3_ENDPOINT:http://localhost:9000}
-      region: ${S3_REGION:us-east-1}
-      bucket: ${CONTRACT_S3_BUCKET:client-onboarding-contracts}
-      access-key: ${S3_ACCESS_KEY:}
-      secret-key: ${S3_SECRET_KEY:}
-      path-style-access: ${S3_PATH_STYLE_ACCESS:true}
-      download-url-ttl: ${CONTRACT_S3_DOWNLOAD_URL_TTL:10m}
-  assets:
-    storage:
-      enabled: ${ASSET_STORAGE_ENABLED:false}
-      endpoint: ${S3_ENDPOINT:http://localhost:9000}
-      region: ${S3_REGION:us-east-1}
-      bucket: ${S3_BUCKET:client-onboarding-assets}
-      access-key: ${S3_ACCESS_KEY:}
-      secret-key: ${S3_SECRET_KEY:}
-      path-style-access: ${S3_PATH_STYLE_ACCESS:true}
-      upload-url-ttl: ${S3_UPLOAD_URL_TTL:15m}
-      download-url-ttl: ${S3_DOWNLOAD_URL_TTL:10m}
-    scan:
-      enabled: ${MALWARE_SCAN_ENABLED:false}
-      host: ${CLAMAV_HOST:localhost}
-      port: ${CLAMAV_PORT:3310}
-      connect-timeout: ${CLAMAV_CONNECT_TIMEOUT:5s}
-      read-timeout: ${CLAMAV_READ_TIMEOUT:2m}
-      max-attempts: ${MALWARE_SCAN_MAX_ATTEMPTS:5}
-      poll-delay: ${MALWARE_SCAN_POLL_DELAY:10s}
-      batch-size: ${MALWARE_SCAN_BATCH_SIZE:10}
-      retry-base-delay: ${MALWARE_SCAN_RETRY_BASE_DELAY:30s}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
 
 logging:
   structured:
     format:
-      console: logstash
+      console: ecs
   level:
     root: INFO
-    com.brainserve.onboarding: INFO
+    com.brainserve.clientonboarding: INFO
+
+app:
+  security:
+    cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+    public-app-url: ${PUBLIC_APP_URL:http://localhost:3000}
+    session-cookie-secure: ${SESSION_COOKIE_SECURE:false}
+    session-duration: ${SESSION_DURATION:8h}
+    session-idle-timeout: ${SESSION_IDLE_TIMEOUT:30m}
+    login-max-attempts: ${LOGIN_MAX_ATTEMPTS:5}
+    login-lock-duration: ${LOGIN_LOCK_DURATION:15m}
+    token-duration: ${SECURITY_TOKEN_DURATION:30m}
+    mfa-encryption-key: ${MFA_ENCRYPTION_KEY:}
+    mail-from: ${SECURITY_MAIL_FROM:no-reply@localhost}
+    smtp-host: ${SMTP_HOST:localhost}
+    smtp-port: ${SMTP_PORT:1025}
+    smtp-username: ${SMTP_USERNAME:}
+    smtp-password: ${SMTP_PASSWORD:}
+    smtp-starttls: ${SMTP_STARTTLS:false}
+    smtp-auth: ${SMTP_AUTH:false}
+    bootstrap:
+      enabled: ${APP_BOOTSTRAP_ENABLED:false}
+      organization-name: ${APP_BOOTSTRAP_ORGANIZATION_NAME:}
+      organization-slug: ${APP_BOOTSTRAP_ORGANIZATION_SLUG:}
+      admin-name: ${APP_BOOTSTRAP_ADMIN_NAME:}
+      admin-email: ${APP_BOOTSTRAP_ADMIN_EMAIL:}
+      admin-password: ${APP_BOOTSTRAP_ADMIN_PASSWORD:}

@@ -2,100 +2,82 @@
 
 ## Source of truth
 
-Read `docs/Client_Onboarding_PRD_SDLC_Implementation_Ready.docx` before changing product behavior. It remains authoritative unless a later approved change explicitly overrides it.
+Read `docs/Client_Onboarding_PRD_SDLC_Implementation_Ready.docx` before changing product behavior. The PRD overrides assumptions. Approved ADRs explain implementation choices but do not change business rules.
 
-## Current phase boundary
+## Execution discipline
 
-Source implementation extends through **Phase 13 — Security Hardening, E2E Testing & Production Readiness**. Phase 12 owns dashboards/reports/analytics; Phase 13 owns hardening and release verification. Do not pull post-MVP roadmap features into release hardening.
+- Implement only the phase explicitly requested by the user.
+- Do not start the next phase automatically.
+- Before implementation, inspect the current code, module map, ADRs and phase report.
+- A feature is incomplete without validation, authorization, tenant-isolation, error-case and documentation coverage appropriate to its phase.
+- Never mark a placeholder, fake provider, permissive security shortcut or TODO-based critical path as production-ready.
+- Current implemented boundary: Phase 3. Do not introduce invitations, client-portal behavior, forms,
+  assets, billing, contracts, access collection, notifications, activation, or reporting without an
+  explicit request for the corresponding later phase.
 
-## Non-negotiable architecture rules
+## Backend rules
 
-- Spring Boot modular monolith; PostgreSQL is the system of record; Flyway owns schema evolution.
-- Every tenant-owned request path validates authenticated identity, tenant, permission and resource relationship.
-- Role names are not authorization logic; permissions are.
-- Modules call controlled application interfaces, never sibling persistence repositories/tables directly.
-- Client, Client Contact and authenticated Client User are distinct concepts.
-- Project, onboarding, step, invoice, payment, contract, asset, access, task and delivery lifecycles remain independent.
-- Workflow versions and published legal/form/access definitions are immutable as required; onboarding snapshots are reproducible.
-- Readiness is derived from applicable blocking step instances; final-review revision evidence adds a separate gate and never rewrites the readiness formula.
-- Final approval completes onboarding and moves the project to READY. Activation is a separate `PROJECT_ACTIVATE` command from READY only.
-- Payment/contract callbacks are verified and idempotent before business-state changes.
-- Files are private until security processing succeeds; normal downloads are short-lived and authorized.
-- Third-party passwords/tokens must never be requested for platform access.
-- Notification/reminder delivery failure must not corrupt domain state; retries are bounded and inspectable.
-- Kafka is not an MVP dependency. Transactional outbox + workers remain the reliable async boundary.
-- Never rewrite an applied migration.
+- Base package: `com.brainserve.clientonboarding`.
+- Keep business logic out of controllers and persistence adapters.
+- Controllers accept requests, invoke application use cases and map responses.
+- Application services own use-case transactions.
+- Domain code must not depend on Spring MVC, JPA entities from another module or integration SDKs.
+- Modules communicate through explicit application ports, domain events or outbox events.
+- No module may directly mutate another module's tables.
+- Tenant-owned repositories require `organizationId`; never add an unscoped `findById` path for tenant data.
+- Permission constants belong to the identity/organization authorization model, not role-name conditionals.
+- Use Flyway for every schema change. Never edit an applied migration.
+- Use optimistic locking and database constraints for meaningful concurrent updates.
+- Use bounded pagination; default 50, maximum 100 unless a later approved requirement changes it.
+- External callbacks require signature verification, provider-event uniqueness and idempotency before state mutation.
 
-## Backend modules
+## Frontend rules
 
-`auth`, `identity`, `organization`, `client`, `servicecatalog`, `project`, `workflow`, `onboarding`, `forms`, `assets`, `access`, `billing`, `payments`, `contracts`, `tasks`, `notifications`, `reminders`, `integrations`, `reporting`, `audit`, `common`.
+- Use feature-oriented folders. Shared primitives live under `components/ui`; cross-feature product components live under `components/shared`.
+- Use semantic design tokens from `app/globals.css` and `design-system/client-onboarding-platform/MASTER.md`; do not add arbitrary raw colors in components.
+- Use visible labels, clear recovery messages, keyboard focus, reduced-motion behavior and responsive layouts.
+- Backend authorization remains authoritative.
+- Client-portal screens must always expose current status, progress, next action, blocker, owner/waiting party, deadline and help.
+- Keep “Your Action” visually and semantically separate from “Waiting for Our Team”.
 
-Prefer `api/`, `application/`, `domain/`, `infrastructure/` inside significant modules. Controllers are thin; transactions/use cases live in application services; invariants/state machines live in domain code.
+## State boundaries
 
-A request-driven tenant aggregate must never be retrieved by raw global ID alone. Use organization-scoped repository methods and database relationship constraints where the invariant is security- or accounting-critical.
+Never combine project, onboarding, onboarding-step, invoice, payment transaction, contract, form submission, asset, platform access or task states. `AWAITING_PAYMENT` is not a project status.
 
-Billing and Payments are two application submodules inside one narrowly documented financial consistency boundary (ADR 0007). Only those two packages may share their persistence repositories for atomic ledger/invoice reconciliation; unrelated modules must use application interfaces.
+## Verification gate
 
-## Phase 12 reporting ownership
+Before phase completion:
 
-- `reporting` is a tenant-scoped, read-only projection over PostgreSQL source-of-truth tables.
-- `REPORT_READ` is mandatory server-side.
-- Reporting may read across module tables but never mutate them or introduce an independent lifecycle/source of truth.
-- Metrics must be reproducible from persisted domain/audit/activity evidence; do not invent client-side analytics.
+1. Backend compiles and automated tests pass.
+2. Flyway succeeds against a clean PostgreSQL database.
+3. Frontend lint, unit tests and production build pass.
+4. Relevant applications start and health checks pass.
+5. UI phases pass Playwright at mobile, tablet and desktop widths with no unexplained console errors.
+6. Authorization and tenant-isolation tests pass for all phase-owned resources.
+7. README, OpenAPI, architecture docs and the phase report are updated.
 
-## Phase 13 production rules
+## Phase 1 identity invariants
 
-- The `prod` profile must fail closed on sandbox/local defaults.
-- Never weaken `ProductionReadinessValidator` to make a deployment pass.
-- Production containers should run without extra Linux capabilities and with read-only root filesystems where supported.
-- CodeQL/dependency review supplement, but never replace, executed application/security tests.
-- A static parse is not a build; no release PASS without the full Maven/Flyway/Next/Playwright gate.
+- Authenticated principals carry one current organization membership; session tokens contain no claims and are stored only as hashes.
+- Role-name comparisons are forbidden. `@PreAuthorize` and application services use permission authorities.
+- Organization/role/member repositories do not expose unscoped ID lookup paths for tenant-owned records.
+- Privileged permissions require MFA; password changes revoke all sessions; invitations and recovery codes are single-use.
+- Audit writes are append-only through the audit repository; normal API users have no mutation endpoint.
 
-## Phase 11 ownership
+## Phase 2 core invariants
 
-- `OnboardingReadinessPolicy`: mathematical readiness = every applicable blocking step is COMPLETED.
-- `FinalReviewRevisionGate`: a review-requested non-blocking revision may keep mathematical readiness true but must prevent automatic re-entry into final review until selected revision work is complete.
-- `OnboardingFinalReviewService`: checklist, review evidence, approval and revision orchestration.
-- Feature-specific `FinalReviewRevisionHandler` implementations own how a form/asset/access/manual-task requirement is reopened.
-- Payment and signed-contract facts are not rewritten through final review.
-- `ProjectActivationService`: controlled project READY transition after completed onboarding and separate READY → ACTIVE activation.
-- `V12__readiness_review_activation.sql`: append-only review evidence and database guards for READY/ACTIVE.
+- Clients, contacts, services, projects, members, and activity rows are tenant-owned and always queried
+  with `organization_id`.
+- Archive operations preserve history; they do not hard-delete business records.
+- A project belongs to exactly one client and one service. Those relationships cannot change after the
+  project leaves `DRAFT`.
+- Project lifecycle values never contain onboarding, payment, contract, asset, or access status values.
 
-Do not make the browser calculate authoritative readiness or mutate lifecycle status directly.
+## Phase 3 workflow invariants
 
-## Phase 10 reliability rules
-
-- EMAIL and IN_APP are the MVP notification channels.
-- Outbox routing, notification delivery and reminder workers use bounded attempts/leases; terminal failure is inspectable.
-- Reminder suppression must win over cadence when the step/onboarding/policy is no longer valid.
-- Client-visible reminders follow the party currently responsible for action; submitted/under-review work waits on the internal team.
-- Notification preferences must affect what is actually surfaced/delivered, not only metadata.
-
-## Frontend conventions
-
-Backend authorization is authoritative. Frontend permission checks only improve UX.
-
-Every major screen needs loading, empty, permission-denied and recoverable error states. Preserve responsive layouts, keyboard focus, semantic labels and text alternatives to status color/icons.
-
-For client/onboarding UX, make status and the primary next action obvious and distinguish **Your Action** from **Waiting for Our Team**.
-
-For final review, clearly distinguish:
-1. blockers complete / readiness evidence;
-2. human approval or revision;
-3. project READY;
-4. separate privileged activation.
-
-## Testing requirements
-
-Relevant phases require:
-- unit tests for domain policies/state machines/validation;
-- PostgreSQL/Testcontainers integration tests for Flyway + tenant/resource constraints;
-- authorization and cross-tenant negative tests;
-- concurrency/idempotency tests where applicable;
-- Playwright for critical responsive browser journeys and console errors.
-
-A static parse is not a build and a source review is not an executed test.
-
-## Completion gate
-
-Before claiming a phase PASS: compile, run unit/integration/security tests, run Flyway from a clean PostgreSQL database, start the application, inspect logs, run frontend lint/typecheck/unit/build/Playwright, update documentation, self-review, fix discovered defects, and report truthfully.
+- Templates are mutable containers; published template versions and active onboarding snapshots are immutable.
+- Conditions use the fixed field/operator/value DSL. Never execute user-authored expressions or scripts.
+- Dependency graphs must be acyclic and contain only same-version edges. Runtime edges stay within one instance.
+- Readiness means every applicable blocking step is `COMPLETED`; required and blocking remain separate flags.
+- Step and onboarding lifecycles remain separate. Phase 3 creates instances in `DRAFT`; invitations and client
+  portal transitions belong to Phase 4, while final approval/activation belongs to Phase 11.

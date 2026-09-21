@@ -1,18 +1,22 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 
 export default function NotFound() {
   return (
-    <main className="grid min-h-screen place-items-center px-5 py-12">
-      <section className="w-full max-w-lg rounded-2xl border bg-[hsl(var(--surface))] p-6 shadow-[var(--shadow-card)] sm:p-8">
-        <p className="text-sm font-semibold text-[hsl(var(--info))]">404</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Page not found</h1>
-        <p className="mt-3 text-sm leading-6 text-[hsl(var(--muted-foreground))]">
-          The requested route does not exist in the current implementation phase.
+    <main className="page-shell grid min-h-dvh place-items-center py-16">
+      <section className="max-w-xl text-center">
+        <p className="font-mono text-sm text-muted-foreground">404</p>
+        <h1 className="mt-4 text-4xl font-bold tracking-tight">That page is not available.</h1>
+        <p className="mt-4 text-muted-foreground">
+          Check the address or return to the foundation overview.
         </p>
-        <Link className="mt-6 inline-block text-sm font-semibold text-[hsl(var(--primary))] underline-offset-4 hover:underline" href="/">
-          Return to foundation status
+        <Link href="/" className={`${buttonVariants({ variant: "outline" })} mt-8`}>
+          <ArrowLeft aria-hidden="true" />
+          Return home
         </Link>
       </section>
     </main>
   );
 }
+

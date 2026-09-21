@@ -1,27 +1,33 @@
-import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import * as React from "react";
+import type * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-md)] px-4 text-sm font-semibold transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-55",
+  "inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition-[background-color,color,box-shadow,transform] duration-200 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        primary: "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--primary)/0.92)]",
-        secondary: "border bg-white text-[hsl(var(--foreground))] hover:bg-[hsl(var(--surface-subtle))]",
-        ghost: "text-[hsl(var(--foreground))] hover:bg-[hsl(var(--surface-subtle))]",
-        destructive: "bg-[hsl(var(--danger))] text-white hover:bg-[hsl(var(--danger)/0.92)]",
+        default:
+          "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 active:translate-y-px",
+        accent:
+          "bg-accent text-accent-foreground shadow-sm hover:bg-accent/88 active:translate-y-px",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/75 active:translate-y-px",
+        outline:
+          "border border-border bg-background/70 text-foreground hover:bg-muted active:translate-y-px",
+        ghost: "text-foreground hover:bg-muted active:translate-y-px",
+        danger:
+          "bg-danger text-danger-foreground shadow-sm hover:bg-danger/90 active:translate-y-px",
       },
       size: {
-        default: "h-10 px-4",
-        sm: "h-9 rounded-lg px-3 text-xs",
-        lg: "h-11 px-5",
-        icon: "size-10 p-0",
+        default: "h-11 px-5",
+        sm: "h-10 min-h-10 px-4",
+        lg: "h-12 min-h-12 px-6 text-base",
+        icon: "size-11 min-h-11 px-0",
       },
     },
     defaultVariants: {
-      variant: "primary",
+      variant: "default",
       size: "default",
     },
   },
@@ -29,16 +35,17 @@ const buttonVariants = cva(
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  asChild?: boolean;
+    VariantProps<typeof buttonVariants> {}
+
+function Button({ className, variant, size, type = "button", ...props }: ButtonProps) {
+  return (
+    <button
+      type={type}
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  );
 }
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
-    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
-  },
-);
-Button.displayName = "Button";
+export { Button, buttonVariants };
 
-export { buttonVariants };

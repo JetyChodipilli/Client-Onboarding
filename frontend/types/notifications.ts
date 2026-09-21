@@ -1,4 +1,0 @@
-export type NotificationItem = {id:string;eventType:string;sourceType:string;sourceId:string;projectId:string|null;title:string;body:string;actionUrl:string|null;readAt:string|null;createdAt:string};
-export type NotificationPreferences = {inAppEnabled:boolean;emailEnabled:boolean};
-export type NotificationTemplate = {id:string;code:string;name:string;eventType:string;recipientScope:"PROJECT_CLIENTS"|"PROJECT_MEMBERS"|"PERMISSION"|"ACTOR";requiredPermission:string|null;subjectTemplate:string;bodyTemplate:string;actionPathTemplate:string|null;channels:Array<"EMAIL"|"IN_APP">;mandatory:boolean;status:string;updatedAt:string;version:number};
-export type NotificationDelivery = {id:string;notificationId:string;channel:"EMAIL"|"IN_APP";recipientAddress:string|null;status:"QUEUED"|"PROCESSING"|"SENT"|"DELIVERED"|"FAILED"|"DEAD"|"SUPPRESSED";attemptCount:number;nextAttemptAt:string|null;sentAt:string|null;deliveredAt:string|null;lastError:string|null;createdAt:string};

@@ -1,8 +1,0 @@
-export type OperationalDashboard={totalOnboardings:number;activeOnboardings:number;awaitingClientAction:number;awaitingInternalReview:number;overdueSteps:number;pendingPayments:number;pendingContracts:number;missingAssets:number;missingAccess:number;readyForApproval:number;completedOnboardings:number;completionRatePercent:number;averageOnboardingHours:number|null};
-export type FunnelMetric={stepType:string;total:number;completed:number;needsRevision:number;failed:number;completionRatePercent:number};
-export type FinancialCurrency={currency:string;invoicesSent:number;invoicesPaid:number;invoicedMinor:number;collectedMinor:number;refundedMinor:number};
-export type FinancialReport={invoicesSent:number;invoicesPaid:number;invoicesOverdue:number;invoicesPartiallyPaid:number;averagePaymentHours:number|null;currencies:FinancialCurrency[]};
-export type ContractReport={contractsSent:number;contractsSigned:number;contractsDeclined:number;contractsExpired:number;completionRatePercent:number;averageSignatureHours:number|null};
-export type DurationReport={averageOnboardingHours:number|null;medianOnboardingHours:number|null;averageClientActionWaitingHours:number|null;averageInternalReviewWaitingHours:number|null;averageActivationHours:number|null};
-export type ReportingSnapshot={generatedAt:string;operational:OperationalDashboard;financial:FinancialReport;contracts:ContractReport;durations:DurationReport;funnel:FunnelMetric[]};
-export type OnboardingReportRow={onboardingId:string;projectId:string;projectName:string;clientId:string;clientName:string;onboardingStatus:string;projectStatus:string;progressPercent:number;overdueSteps:number;startedAt:string;completedAt:string|null};

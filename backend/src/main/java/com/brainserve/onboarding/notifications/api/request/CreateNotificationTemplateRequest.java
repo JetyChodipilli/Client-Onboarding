@@ -1,3 +1,0 @@
-package com.brainserve.onboarding.notifications.api.request;
-import jakarta.validation.constraints.*;import java.util.List;
-public record CreateNotificationTemplateRequest(@NotBlank @Size(max=100) String code,@NotBlank @Size(max=180) String name,@NotBlank @Size(max=100) String eventType,@NotBlank @Pattern(regexp="PROJECT_CLIENTS|PROJECT_MEMBERS|PERMISSION|ACTOR") String recipientScope,@Size(max=100) String requiredPermission,@NotBlank @Size(max=300) String subjectTemplate,@NotBlank @Size(max=6000) String bodyTemplate,@Size(max=1000) String actionPathTemplate,@NotEmpty @Size(max=2) List<@Pattern(regexp="EMAIL|IN_APP") String> channels,boolean mandatory){}

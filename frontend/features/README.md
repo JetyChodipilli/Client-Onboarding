@@ -1,3 +1,4 @@
-# Feature modules
+# Features
 
-Feature-owned UI and client-side orchestration live here. Keep domain-specific screens and reusable feature components behind server-authoritative API boundaries; frontend permission checks are UX only.
+Business UI is introduced phase-by-phase. Each feature owns its components, data access, validation, hooks and tests. Phase 0 intentionally contains no business feature.
+

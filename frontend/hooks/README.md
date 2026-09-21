@@ -1,3 +1,4 @@
 # Hooks
 
-Cross-feature React hooks belong here only when they are genuinely shared.
+Only reusable cross-feature hooks belong here. Domain hooks stay within their feature folder.
+
