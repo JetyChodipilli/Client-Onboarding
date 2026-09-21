@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 
 @TestConfiguration(proxyBeanMethods = false)
-class TestSecurityNotificationConfiguration {
+public class TestSecurityNotificationConfiguration {
     @Bean
     @Primary
     SecurityNotificationPort testSecurityNotifications() {
