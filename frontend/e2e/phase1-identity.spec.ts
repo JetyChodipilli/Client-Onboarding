@@ -53,7 +53,7 @@ test.describe("Phase 1 identity UI", () => {
     await page.goto("/login");
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page.getByText("Check the highlighted fields.")).toBeFocused();
-    await expect(page.getByText("Enter a valid email address.")).toBeVisible();
+    await expect(page.locator("#email-error")).toHaveText("Enter a valid email address.");
   });
 
   test("API error retains the form and gives a recovery message", async ({ page }) => {
@@ -68,6 +68,10 @@ test.describe("Phase 1 identity UI", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "credentials are invalid" })).toBeVisible();
     await expect(page.getByLabel("Work email")).toHaveValue("admin@example.test");
+    const expectedErrors = browserErrors.get(page) ?? [];
+    expect(expectedErrors.length).toBeGreaterThan(0);
+    expect(expectedErrors.every((message) => message.includes("401 (Unauthorized)"))).toBe(true);
+    expectedErrors.length = 0;
   });
 
   test("authorization failure and empty member state remain explicit", async ({ page }) => {
@@ -78,6 +82,10 @@ test.describe("Phase 1 identity UI", () => {
     });
     await page.goto("/app/settings/members");
     await expect(page.getByRole("alert").filter({ hasText: "do not have permission" })).toBeVisible();
+    const expectedErrors = browserErrors.get(page) ?? [];
+    expect(expectedErrors.length).toBeGreaterThan(0);
+    expect(expectedErrors.every((message) => message.includes("403 (Forbidden)"))).toBe(true);
+    expectedErrors.length = 0;
 
     await page.unrouteAll();
     await mockApi(page, async (route, endpoint) => {

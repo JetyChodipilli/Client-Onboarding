@@ -49,7 +49,7 @@ test.describe("Phase 3 workflow UI", () => {
     await expect(page.getByRole("heading", { name: template.name })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Ordered steps" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Move Collect brief down" })).toBeVisible();
-    await expect(page.getByText("Blocking steps")).toBeVisible();
+    await expect(page.locator("dt").filter({ hasText: "Blocking steps" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
   });
 
