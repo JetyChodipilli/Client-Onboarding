@@ -9,7 +9,9 @@ invitations and portal behavior are intentionally absent because they belong to 
 - Implemented: Phase 0 foundation; Phase 1 identity/auth/RBAC/tenancy; Phase 2 clients, contacts, services,
   and projects; Phase 3 workflow templates, versions, instances, steps, dependencies, conditions, and readiness.
 - Not started: Phase 4 client invitation and portal, and Phases 5–13.
-- Release evidence and environment limitations are recorded in `docs/phase-reports/phase-3.md`.
+- Release evidence is recorded in `docs/phase-reports/phase-3.md`. The reviewed Phase 3 branch passed backend,
+  frontend, real-Chromium/PostgreSQL, and production-container gates in
+  [GitHub Actions run 35592880143](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/35592880143).
 
 ## Repository map
 

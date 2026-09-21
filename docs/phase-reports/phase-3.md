@@ -1,8 +1,9 @@
 # Phase 3 completion report
 
 PHASE COMPLETED:
-Phase 3 implementation is complete. The Definition-of-Done release gate remains open until the published branch
-passes backend, clean PostgreSQL migration, Playwright, and container CI. Phase 4 was not started.
+Phase 3 is complete. Backend, clean PostgreSQL migration, frontend, Playwright, and container gates passed in
+GitHub Actions run [35592880143](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/35592880143).
+Phase 4 was not started.
 
 IMPLEMENTED:
 - Tenant-owned workflow templates with service scope, archive behavior, and permission-based access.
@@ -19,15 +20,15 @@ DATABASE MIGRATIONS:
 - Added `V5__workflow_engine.sql`.
 - Adds workflow templates/versions/steps/dependencies, onboarding instances/step instances/runtime dependencies,
   idempotency records, permissions, tenant constraints, optimistic versions, and indexes.
-- V1–V4 were previously exercised against PostgreSQL 17.10. V5 could not be executed locally because Maven
-  Central is unreachable and neither Maven nor Docker is installed; CI is the required final proof.
+- A clean PostgreSQL 17.11 database applied all five migrations and reached Flyway version 5.
+- The runtime smoke test independently migrated another clean PostgreSQL database to version 5.
 
 API ENDPOINTS:
 - Workflow template list/create/read/archive.
 - Template version list/create/read, optimistic step replacement, and publication.
 - Idempotent project onboarding start and project/instance reads.
 - Optimistic onboarding-step transitions with separate progression and review authorization.
-- Static OpenAPI now documents 47 paths through Phase 3; runtime `/v3/api-docs` remains authoritative.
+- Static OpenAPI documents 47 paths through Phase 3; runtime `/v3/api-docs` is verified by the smoke test.
 
 UI SCREENS:
 - Workflow template portfolio and creation.
@@ -40,15 +41,18 @@ TESTS ADDED:
 - Workflow condition, graph, readiness, step lifecycle, and onboarding lifecycle policies.
 - Phase 2/3 integration scenarios for authorization, tenant isolation, publication immutability, snapshot isolation,
   conditional steps, ALL/ANY dependencies, reviewer separation, idempotent replay, and readiness.
-- 36 backend test methods are committed; the dependency-free domain model compiles to 43 classes locally.
-- Frontend ESLint and strict TypeScript pass; eight Vitest tests pass across four files.
-- Next.js production build and production-server security-header/content probe pass.
+- Maven executed 36 tests: 36 passed, zero failed, zero skipped.
+- ArchUnit module boundaries, embedded PostgreSQL, PostgreSQL 17.11, and application runtime smoke tests passed.
+- Frontend ESLint, strict TypeScript, eight Vitest tests, and the Next.js production build passed.
 
 PLAYWRIGHT SCENARIOS:
-- 52 scenarios are discovered across desktop, tablet, mobile portrait, and mobile landscape.
-- Four Phase 3 desktop scenarios were attempted; all stopped before page execution because the Playwright
-  Chromium executable is unavailable. The application server itself starts successfully.
-- CI installs Chromium and runs the full matrix, including a live backend/MFA path.
+- 52 scenarios were discovered across desktop, tablet, mobile portrait, and mobile landscape.
+- 49 scenarios passed in real Chromium; three non-desktop duplicates of the desktop-only live MFA scenario were
+  intentionally skipped.
+- The live scenario used the running Spring Boot application and PostgreSQL service and completed privileged
+  bootstrap login, TOTP enrollment, recovery-code handoff, and workspace entry.
+- Workflow editor, immutable publication, runtime progress/readiness, keyboard, reduced-motion, error-state,
+  console-error, and horizontal-overflow coverage passed.
 
 SECURITY VALIDATION:
 - Workflow/onboarding repositories scope every resource by `organization_id`; cross-tenant reads return 404.
@@ -57,6 +61,7 @@ SECURITY VALIDATION:
 - Published versions and snapshots are immutable; optimistic locks and row locks close edit/archive/idempotency races.
 - Conditions are allowlisted data comparisons, never code. DTO allowlists, CSRF, exact CORS, CSP, parameterized
   JDBC, bounded queries, and generic constraint failures remain enabled.
+- The backend and frontend production container images build successfully and run as non-root users.
 
 DESIGN PATTERNS USED:
 - Modular monolith, domain policy, repository port/adapter, application transaction, immutable snapshot,
@@ -64,25 +69,24 @@ DESIGN PATTERNS USED:
 - UI follows feature ownership, semantic tokens, keyboard alternatives, responsive reflow, and reduced motion.
 
 KNOWN LIMITATIONS:
-- This workspace cannot download Maven, launch Chromium, or run Docker.
-- The local Maven attempt stops before project compilation with `UnknownHostException: repo.maven.apache.org`.
-- Phase 3 leaves onboarding lifecycle in `DRAFT`; invitation/client progression is Phase 4 and activation is Phase 11.
+- Phase 3 intentionally stops before invitations and the client portal; those belong to Phase 4.
+- Concrete form, asset, billing, contract, and access step handlers belong to later phases.
+- No known critical Phase 3 defect remains.
 
 PRD ITEMS COMPLETED:
 - Workflow templates, versions, steps, dependencies, conditions, blocking/required rules, assignments, due dates,
   skip/reopen rules, onboarding instances, step instances, state validation, snapshot isolation, and readiness.
-- Sequential, parallel, ALL, ANY, conditional, optional, blocking, edited-template, authorization, and tenant cases
-  are represented in committed automated tests.
+- Sequential, parallel, ALL, ANY, conditional, optional, blocking, edited-template, authorization, tenant,
+  concurrency, browser, and production-build cases.
 
 PRD ITEMS REMAINING:
-- Successful backend, V5 clean PostgreSQL, full Playwright, and container CI execution.
 - Phase 4–13 are intentionally not implemented.
 
 BUILD STATUS:
-FAIL — frontend and dependency-free Java domain builds pass; the required full Maven build is blocked locally.
+PASS
 
 TEST STATUS:
-FAIL — available tests pass, but mandatory backend/PostgreSQL/Playwright/container execution is incomplete.
+PASS
 
 READY FOR NEXT PHASE:
-NO — do not start Phase 4 until the published branch CI passes.
+YES — Phase 4 requires a separate explicit instruction and was not started.
