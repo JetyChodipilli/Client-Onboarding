@@ -19,6 +19,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -54,6 +55,13 @@ public class GlobalExceptionHandler {
                 .toList();
         return failure(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
                 "One or more values are invalid.", violations);
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    ResponseEntity<ApiFailure> handleMethodValidation(HandlerMethodValidationException exception) {
+        if (exception.isForReturnValue()) return handleUnexpected(exception);
+        return failure(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
+                "One or more request parameters are invalid.", List.of());
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

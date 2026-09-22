@@ -16,6 +16,7 @@ public interface OnboardingRepository {
                            String fingerprint, Instant now);
     OnboardingInstance insert(OnboardingInstance instance, List<OnboardingStepInstance> steps, UUID actorId);
     List<OnboardingStepInstance> findSteps(UUID organizationId, UUID onboardingId);
+    List<OnboardingStepInstance> findSteps(UUID organizationId, List<UUID> onboardingIds);
     Optional<OnboardingStepInstance> findStep(UUID organizationId, UUID stepId);
     boolean updateStepStatus(UUID organizationId, UUID stepId, OnboardingStepInstance.Status current,
                              OnboardingStepInstance.Status next, long version, UUID actorId, Instant now);

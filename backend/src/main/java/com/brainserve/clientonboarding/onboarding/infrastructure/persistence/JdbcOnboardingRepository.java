@@ -131,16 +131,23 @@ public class JdbcOnboardingRepository implements OnboardingRepository {
 
     @Override
     public List<OnboardingStepInstance> findSteps(UUID organizationId, UUID onboardingId) {
+        return findSteps(organizationId, List.of(onboardingId));
+    }
+
+    @Override
+    public List<OnboardingStepInstance> findSteps(UUID organizationId, List<UUID> onboardingIds) {
+        if (onboardingIds.isEmpty()) return List.of();
+        if (onboardingIds.size() > 100) throw new IllegalArgumentException("At most 100 onboardings can be read together.");
         List<StepRow> rows = jdbc.sql("""
                 SELECT * FROM onboarding_step_instances WHERE organization_id = :organizationId
-                    AND onboarding_id = :onboardingId ORDER BY display_order, id
-                """).param("organizationId", organizationId).param("onboardingId", onboardingId)
+                    AND onboarding_id IN (:onboardingIds) ORDER BY display_order, id
+                """).param("organizationId", organizationId).param("onboardingIds", onboardingIds)
                 .query(this::mapStepRow).list();
         Map<UUID, List<UUID>> dependencies = new HashMap<>();
         jdbc.sql("""
                 SELECT step_instance_id, depends_on_step_instance_id FROM onboarding_step_instance_dependencies
-                WHERE organization_id = :organizationId AND onboarding_id = :onboardingId
-                """).param("organizationId", organizationId).param("onboardingId", onboardingId)
+                WHERE organization_id = :organizationId AND onboarding_id IN (:onboardingIds)
+                """).param("organizationId", organizationId).param("onboardingIds", onboardingIds)
                 .query((rs, rowNum) -> new UUID[] { rs.getObject(1, UUID.class), rs.getObject(2, UUID.class) })
                 .list().forEach(pair -> dependencies.computeIfAbsent(pair[0], ignored -> new ArrayList<>()).add(pair[1]));
         return rows.stream().map(row -> row.toStep(dependencies.getOrDefault(row.id(), List.of()))).toList();

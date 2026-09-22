@@ -50,7 +50,9 @@ test.describe("Phase 4 client invitation and portal", () => {
     await expect(page).toHaveURL(/\/portal$/);
   });
 
-  test("shows status progress next action blocker deadline and help", async ({ page }) => {
+  test("shows status progress next action blocker deadline and help", async ({ page }, testInfo) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
     await mock(page); await page.goto("/portal/projects/project-1");
     await expect(page.getByRole("heading", { name: "Acme Launch" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Your action", exact: true })).toBeVisible();
@@ -60,6 +62,8 @@ test.describe("Phase 4 client invitation and portal", () => {
     await expect(page.getByText("Available help")).toBeVisible();
     await expect(page.getByText("Internal risk review")).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);
+    await page.screenshot({ path: testInfo.outputPath("client-dashboard.png"), fullPage: true });
+    expect(errors).toEqual([]);
   });
 
   test("starts an actionable informational step", async ({ page }) => {
@@ -67,5 +71,44 @@ test.describe("Phase 4 client invitation and portal", () => {
     await page.getByRole("button", { name: "Start this step" }).click();
     await expect(page.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "50");
     await expect(page.getByRole("button", { name: "Mark complete" })).toBeVisible();
+  });
+
+  test("submits review-required work for team review", async ({ page }) => {
+    await mock(page);
+    const step = { ...dashboard.nextAction, status: "IN_PROGRESS", requiresReview: true, version: 1 };
+    await page.route("**/api/v1/client-portal/projects/project-1", (route) => respond(route, success({ ...dashboard, nextAction: step, steps: [step] })));
+    await page.route("**/steps/step-1/transition", (route) => {
+      expect(route.request().postDataJSON().targetStatus).toBe("SUBMITTED");
+      return respond(route, success({ ...dashboard, nextAction: null, waitingFor: "OUR_TEAM", steps: [{ ...step, status: "SUBMITTED", actionable: false, waitingFor: "OUR_TEAM" }] }));
+    });
+    await page.goto("/portal/projects/project-1");
+    await page.getByRole("button", { name: "Submit for review" }).click();
+    await expect(page.getByText("SUBMITTED", { exact: true })).toBeVisible();
+    await expect(page.getByText("Internal review or prerequisite")).toBeVisible();
+  });
+
+  test("shows empty projects and recovers from a denied project", async ({ page }) => {
+    await mock(page);
+    await page.route("**/api/v1/client-portal/projects?*", (route) => respond(route, success([])));
+    await page.goto("/portal");
+    await expect(page.getByRole("heading", { name: "No projects are assigned" })).toBeVisible();
+    await page.route("**/api/v1/client-portal/projects/private", (route) => respond(route, failure("RESOURCE_NOT_FOUND", "Requested resource was not found."), 404));
+    await page.goto("/portal/projects/private");
+    await expect(page.getByText("Requested resource was not found.")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Projects", exact: true })).toBeVisible();
+  });
+
+  test("keeps a clear loading state and shows an API failure", async ({ page }) => {
+    await mock(page);
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => { release = resolve; });
+    await page.route("**/api/v1/client-portal/projects/project-1", async (route) => {
+      await waiting;
+      return respond(route, failure("DEPENDENCY_UNAVAILABLE", "The service is temporarily unavailable."), 503);
+    });
+    await page.goto("/portal/projects/project-1");
+    await expect(page.locator('[aria-busy="true"]')).toBeVisible();
+    release();
+    await expect(page.getByText("The service is temporarily unavailable.")).toBeVisible();
   });
 });

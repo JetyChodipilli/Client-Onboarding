@@ -86,10 +86,7 @@ public class ClientPortalService {
         }
         var target = portal.findInvitationTarget(principal.organizationId(), onboardingId, command.contactId())
                 .orElseThrow(this::notFound);
-        if (!List.of("DRAFT", "INVITED", "IN_PROGRESS").contains(target.onboardingStatus())) {
-            throw new DomainException("ONBOARDING_NOT_INVITABLE",
-                    "This onboarding can no longer accept client invitations.", HttpStatus.CONFLICT);
-        }
+        requireInvitable(target);
         Instant now = clock.instant();
         String raw = tokens.issue();
         ClientInvitation invitation = new ClientInvitation(UUID.randomUUID(), principal.organizationId(),
@@ -272,8 +269,12 @@ public class ClientPortalService {
 
     @PreAuthorize("hasAuthority('CLIENT_PORTAL_READ')")
     public List<PortalProjectView> projectList(TenantPrincipal principal, int page, int size) {
-        return portal.findPortalProjects(principal.organizationId(), principal.membershipId(), page, size).stream()
-                .map(project -> summary(principal, project)).toList();
+        var projects = portal.findPortalProjects(principal.organizationId(), principal.membershipId(), page, size);
+        var steps = onboardings.findSteps(principal.organizationId(), projects.stream()
+                .map(PortalRepository.PortalProject::onboardingId).toList()).stream()
+                .collect(java.util.stream.Collectors.groupingBy(OnboardingStepInstance::onboardingId));
+        return projects.stream().map(project -> summary(principal, project,
+                steps.getOrDefault(project.onboardingId(), List.of()))).toList();
     }
 
     @PreAuthorize("hasAuthority('CLIENT_PORTAL_READ')")
@@ -345,9 +346,9 @@ public class ClientPortalService {
         return dashboard(principal, projectId);
     }
 
-    private PortalProjectView summary(TenantPrincipal principal, PortalRepository.PortalProject project) {
-        List<OnboardingStepInstance> steps = clientSteps(principal,
-                onboardings.findSteps(principal.organizationId(), project.onboardingId()));
+    private PortalProjectView summary(TenantPrincipal principal, PortalRepository.PortalProject project,
+                                      List<OnboardingStepInstance> allSteps) {
+        List<OnboardingStepInstance> steps = clientSteps(principal, allSteps);
         long pending = steps.stream()
                 .filter(step -> step.status() != OnboardingStepInstance.Status.COMPLETED
                         && step.status() != OnboardingStepInstance.Status.SKIPPED)

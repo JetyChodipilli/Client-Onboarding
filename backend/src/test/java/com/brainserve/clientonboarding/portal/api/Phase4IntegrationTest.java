@@ -289,7 +289,7 @@ class Phase4IntegrationTest {
                 .andExpect(status().isNotFound());
         // A real project in the same tenant still requires an explicit project grant.
         UUID ungranted = UUID.randomUUID();
-        jdbc.sql("INSERT INTO projects (id, organization_id, client_id, service_id, name, status, created_at, updated_at, version) SELECT :id,organization_id,client_id,service_id,'Not shared','DRAFT',created_at,updated_at,0 FROM projects WHERE id=:source")
+        jdbc.sql("INSERT INTO projects (id, organization_id, client_id, service_id, name, status, created_at, created_by, updated_at, updated_by, version) SELECT :id,organization_id,client_id,service_id,'Not shared','DRAFT',created_at,created_by,updated_at,updated_by,0 FROM projects WHERE id=:source")
                 .param("id", ungranted).param("source", projectId).update();
         mockMvc.perform(get("/api/v1/client-portal/projects/{id}", ungranted).cookie(client))
                 .andExpect(status().isNotFound());
