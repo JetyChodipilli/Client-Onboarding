@@ -172,7 +172,7 @@ class Phase4IntegrationTest {
                 .andExpect(jsonPath("$.data.deliveryStatus").value("FAILED"));
         mockMvc.perform(get("/api/v1/onboardings/{id}", onboardingId).cookie(managerA))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("INVITED"));
+                .andExpect(jsonPath("$.data.onboarding.status").value("INVITED"));
     }
 
     @Test

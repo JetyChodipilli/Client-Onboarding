@@ -216,7 +216,8 @@ public class JdbcPortalRepository implements PortalRepository, ClientSessionAcce
                 JOIN organizations o ON o.id = cu.organization_id
                 JOIN clients c ON c.organization_id = cu.organization_id AND c.id = cu.client_id
                 JOIN users u ON u.id = cu.user_id
-                WHERE """ + predicate + " AND o.status = 'ACTIVE' AND cu.status = 'ACTIVE' AND c.archived_at IS NULL");
+                WHERE (""" + predicate
+                + ") AND o.status = 'ACTIVE' AND cu.status = 'ACTIVE' AND c.archived_at IS NULL");
         if (first instanceof UUID) spec = spec.param("userId", first).param("organizationId", second);
         else spec = spec.param("email", first).param("slug", second);
         return spec.query((rs, rowNum) -> new ClientSessionAccess(

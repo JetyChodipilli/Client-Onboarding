@@ -8,6 +8,8 @@ Each aggregate owns one lifecycle. A transition in one machine may trigger a com
 | Project | `DRAFT`, `ONBOARDING`, `READY`, `ACTIVE`, `ON_HOLD`, `COMPLETED`, `CANCELLED`, `ARCHIVED` | Payment and contract conditions are never project statuses. |
 | Onboarding | `DRAFT`, `INVITED`, `IN_PROGRESS`, `AWAITING_INTERNAL_REVIEW`, `NEEDS_REVISION`, `APPROVED`, `COMPLETED`, `PAUSED`, `EXPIRED`, `CANCELLED` | Readiness may move the instance to internal review; final approval is separate. |
 | Step | `LOCKED`, `AVAILABLE`, `IN_PROGRESS`, `SUBMITTED`, `UNDER_REVIEW`, `NEEDS_REVISION`, `COMPLETED`, `SKIPPED`, `FAILED`, `CANCELLED` | Feature handlers request validated transitions through the workflow API. |
+| Client invitation | `PENDING`, `ACCEPTED`, `REVOKED` | Expiry is derived from `expires_at`; delivery status is independent and never becomes an onboarding state. |
+| Invitation delivery | `PENDING`, `SENT`, `FAILED` | A delivery failure leaves the authoritative invitation usable and resendable. |
 | Invoice | `DRAFT`, `SENT`, `VIEWED`, `PARTIALLY_PAID`, `PAID`, `OVERDUE`, `VOID`, `CANCELLED`, `REFUNDED`, `PARTIALLY_REFUNDED` | Balance/status derives from authoritative transactions and policy. |
 | Payment transaction | `INITIATED`, `PENDING`, `AUTHORIZED`, `CAPTURED`, `FAILED`, `CANCELLED`, `REFUNDED`, `PARTIALLY_REFUNDED` | Verified provider webhook is authoritative. |
 | Contract | `DRAFT`, `GENERATED`, `SENT`, `VIEWED`, `SIGNED`, `DECLINED`, `EXPIRED`, `VOID`, `CANCELLED` | Sent versions are immutable. |
@@ -29,4 +31,3 @@ Required/optional controls completion expectations; blocking/non-blocking contro
 ## Template invariant
 
 Publishing or editing a workflow template version never mutates an active onboarding instance. Starting onboarding copies the selected published version into an immutable snapshot and instantiates steps from that snapshot.
-

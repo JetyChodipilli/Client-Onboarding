@@ -29,7 +29,8 @@ Client members see only generally assigned or `CLIENT_MEMBER` steps.
 
 ## Portal read model
 
-The portal returns the project/onboarding status, readiness-derived progress, next action, blocking reason,
+The portal returns the project/onboarding status, progress across the authenticated client's visible assigned
+steps, next action, blocking reason,
 waiting party, nearest applicable deadline, help route, and the ordered client-visible applicable steps.
 Internal-only, condition-disabled, and unassigned steps are never serialized. Locked steps name only visible
 prerequisites; otherwise they say the project team is completing a prerequisite.
