@@ -598,6 +598,9 @@ paths:
       tags: [Client Portal]
       security: [{ cookieAuth: [] }]
       summary: List tenant-scoped invitations for an onboarding
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
       responses:
         '200': { $ref: '#/components/responses/Success' }
         '404': { $ref: '#/components/responses/Error' }
@@ -675,6 +678,9 @@ paths:
       tags: [Client Portal]
       security: [{ cookieAuth: [] }]
       summary: List only explicitly granted client projects
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
       responses: { '200': { $ref: '#/components/responses/Success' } }
   /api/v1/client-portal/projects/{projectId}:
     get:
@@ -688,6 +694,7 @@ paths:
     post:
       tags: [Client Portal]
       security: [{ cookieAuth: [] }]
+      description: Only IN_PROGRESS onboarding accepts updates. Informational steps move AVAILABLE to IN_PROGRESS, then SUBMITTED when requiresReview is true or COMPLETED otherwise. Locked, hidden, and unassigned steps cannot be changed.
       parameters:
         - { $ref: '#/components/parameters/CsrfHeader' }
         - { name: projectId, in: path, required: true, schema: { type: string, format: uuid } }

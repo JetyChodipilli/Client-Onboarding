@@ -71,11 +71,18 @@ npx playwright install --with-deps chromium
 npm run test:e2e
 ```
 
-Or run the complete Phase 4 gate in an environment with PostgreSQL, Chromium, and Docker:
+Run the local build, migration, browser, and image-build checks with Chromium and Docker available:
 
 ```bash
 ./scripts/verify-phase-4.sh
 ```
+
+The authoritative full-stack gate is the GitHub Actions CI workflow. Its browser job uses a fresh PostgreSQL
+database and bootstrap account, performs MFA enrollment, sends an invitation through the real SMTP adapter to
+a loopback test inbox, and verifies client activation, login, progress, access denial, logout, and link reuse.
+The container job also starts the complete Compose stack and checks readiness and the client sign-in page.
+For the live browser flow locally, use the CI environment settings with a fresh test database, leave port 1025
+free for the test inbox, and run `LIVE_BACKEND=1 npm run test:e2e`. Ordinary browser runs skip that live-only case.
 
 The backend starts Flyway automatically and validates migrations against PostgreSQL. Hibernate schema
 generation is disabled.

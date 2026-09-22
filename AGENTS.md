@@ -92,3 +92,7 @@ Before phase completion:
   inapplicable, and unassigned steps.
 - Invitation delivery failure remains separate from authoritative invitation/onboarding state and can be retried.
 - Phase 4 transitions onboarding `DRAFT` to `INVITED` and acceptance to `IN_PROGRESS`; forms begin in Phase 5.
+- Only active onboardings accept client step transitions. Review-required work is submitted, never self-approved.
+- Invitation and portal list queries are paginated; progress reads use a bounded batch of onboarding instances.
+- The live Phase 4 browser flow requires a fresh bootstrap database and a free loopback SMTP port 1025;
+  use the CI browser job for repeatable full-stack verification.

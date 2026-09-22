@@ -138,8 +138,27 @@ jobs:
         with:
           context: backend
           push: false
+          load: true
+          tags: client-onboarding-backend:latest
       - name: Build frontend image
         uses: docker/build-push-action@v6
         with:
           context: frontend
           push: false
+          load: true
+          tags: client-onboarding-frontend:latest
+      - name: Verify clean Compose startup
+        env:
+          MFA_ENCRYPTION_KEY: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=
+        run: |
+          docker compose config --quiet
+          docker compose up --no-build --wait --wait-timeout 180
+          curl --fail http://localhost:8080/health/ready
+          curl --fail http://localhost:3000/client/login > /dev/null
+          docker compose logs --no-color > /tmp/phase-4-compose.log
+          if grep -E '"level":"ERROR"| ERROR ' /tmp/phase-4-compose.log; then exit 1; fi
+      - name: Compose logs and cleanup
+        if: always()
+        run: |
+          docker compose logs --no-color
+          docker compose down --volumes

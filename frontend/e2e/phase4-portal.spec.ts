@@ -45,7 +45,7 @@ test.describe("Phase 4 client invitation and portal", () => {
   test("signs a client into the separate portal scope", async ({ page }) => {
     await mock(page); await page.goto("/client/login?organization=northstar");
     await page.getByLabel("Work email").fill("ada@client.test");
-    await page.getByLabel("Password").fill("ClientPortal7Password");
+    await page.getByLabel("Password", { exact: true }).fill("ClientPortal7Password");
     await page.getByRole("button", { name: "Open client portal" }).click();
     await expect(page).toHaveURL(/\/portal$/);
   });

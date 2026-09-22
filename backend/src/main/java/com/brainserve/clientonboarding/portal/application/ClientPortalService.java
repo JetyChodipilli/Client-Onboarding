@@ -18,8 +18,8 @@ import com.brainserve.clientonboarding.onboarding.domain.model.OnboardingStepIns
 import com.brainserve.clientonboarding.onboarding.domain.model.ReadinessPolicy;
 import com.brainserve.clientonboarding.onboarding.domain.repository.OnboardingRepository;
 import com.brainserve.clientonboarding.portal.domain.model.ClientInvitation;
+import com.brainserve.clientonboarding.portal.domain.model.ClientStepPolicy;
 import com.brainserve.clientonboarding.portal.domain.repository.PortalRepository;
-import com.brainserve.clientonboarding.workflow.domain.model.TemplateStep;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -321,18 +321,12 @@ public class ClientPortalService {
                 .filter(value -> principal.hasPermission("CLIENT_PORTAL_ADMIN") || value.assignedRole() == null
                         || "CLIENT_MEMBER".equalsIgnoreCase(value.assignedRole()))
                 .orElseThrow(this::notFound);
-        if (!List.of(TemplateStep.StepType.WELCOME, TemplateStep.StepType.INSTRUCTION,
-                TemplateStep.StepType.EXTERNAL_LINK, TemplateStep.StepType.VIDEO_GUIDE).contains(step.stepType())) {
+        if (!ClientStepPolicy.informational(step.stepType())) {
             throw new DomainException("STEP_HANDLER_UNAVAILABLE",
                     "This step needs its dedicated secure collection flow.", HttpStatus.CONFLICT);
         }
         OnboardingStepInstance.Status target = command.targetStatus();
-        boolean allowed = (step.status() == OnboardingStepInstance.Status.AVAILABLE
-                && target == OnboardingStepInstance.Status.IN_PROGRESS)
-                || (step.status() == OnboardingStepInstance.Status.IN_PROGRESS
-                && target == (step.requiresReview() ? OnboardingStepInstance.Status.SUBMITTED
-                                                    : OnboardingStepInstance.Status.COMPLETED));
-        if (!allowed) throw new DomainException("INVALID_STEP_TRANSITION",
+        if (!ClientStepPolicy.permits(step.status(), target, step.requiresReview())) throw new DomainException("INVALID_STEP_TRANSITION",
                 "The requested client step transition is not allowed.", HttpStatus.CONFLICT);
         Instant now = clock.instant();
         if (!onboardings.updateStepStatus(principal.organizationId(), stepId, step.status(), target,
@@ -385,10 +379,8 @@ public class ClientPortalService {
                 reason = "Your team is completing a prerequisite.";
             }
         } else waitingFor = "NONE";
-        boolean actionable = active && List.of(TemplateStep.StepType.WELCOME, TemplateStep.StepType.INSTRUCTION,
-                TemplateStep.StepType.EXTERNAL_LINK, TemplateStep.StepType.VIDEO_GUIDE).contains(step.stepType())
-                && (step.status() == OnboardingStepInstance.Status.AVAILABLE
-                    || step.status() == OnboardingStepInstance.Status.IN_PROGRESS);
+        boolean actionable = active && ClientStepPolicy.informational(step.stepType())
+                && ClientStepPolicy.actionable(step.status());
         return new PortalStep(step.id(), step.name(), step.description(), step.stepType().name(),
                 step.status().name(), step.required(), step.blocking(), step.dueAt(), waitingFor, reason,
                 actionable, step.requiresReview(), step.version());

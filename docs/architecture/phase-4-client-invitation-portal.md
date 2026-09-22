@@ -31,10 +31,42 @@ Client members see only generally assigned or `CLIENT_MEMBER` steps.
 
 The portal returns the project/onboarding status, progress across the authenticated client's visible assigned
 steps, next action, blocking reason,
-waiting party, nearest applicable deadline, help route, and the ordered client-visible applicable steps.
+waiting party, the next action's deadline, help route, and the ordered client-visible applicable steps.
 Internal-only, condition-disabled, and unassigned steps are never serialized. Locked steps name only visible
 prerequisites; otherwise they say the project team is completing a prerequisite.
 
 Phase 4 can start and complete only informational step types (`WELCOME`, `INSTRUCTION`, `EXTERNAL_LINK`, and
 `VIDEO_GUIDE`). Form, file, payment, contract, access, and other typed handlers remain unavailable until their
 own phases and return an explicit recovery message instead of a fake completion path.
+
+Informational steps requiring review submit to `SUBMITTED`; the client cannot approve its own submission.
+Paused, expired, cancelled, completed, and other non-active onboardings reject client step updates. The same
+lifecycle checks prevent accepting or resending invitations after onboarding is closed or paused. Invitations
+to archived, completed, or cancelled projects cannot activate access.
+
+## Query and error boundaries
+
+Project and invitation lists accept zero-based `page` and `size` (default 50, maximum 100). The UI exposes
+previous/next navigation when needed. Project progress loads all onboarding steps for the current page in
+two batched queries rather than per-project queries. The batch is bounded to 100 onboarding instances, each
+with the existing 200-step template ceiling. Progress includes only requirements visible to the caller.
+
+Invalid parameter constraints use the shared `VALIDATION_FAILED` HTTP 400 envelope. Client login, invitation
+password confirmation, and password-reset requests use the existing bounded rate limiter. Production ingress
+still needs distributed rate limiting when multiple application instances are used.
+
+## Verification and rollout
+
+`Phase4IntegrationTest` uses a fresh embedded PostgreSQL instance for invitation persistence, rotation,
+single-use activation, permission rejection, tenant separation, CSRF, optimistic conflicts, delivery failure,
+member visibility, review submission, paused lifecycle, and pagination constraints. Existing H2, PostgreSQL
+Testcontainers, architecture, readiness, and application-startup gates remain enabled.
+
+The CI browser job runs real bootstrap MFA, creates a client/project/workflow through authorized APIs, captures
+the production SMTP adapter's message in a loopback test inbox, and follows the invitation in a separate browser
+context through activation, login, completion, logout, and consumed-link rejection. UI error and responsive cases
+use controlled API responses across four viewports. Browser reports and screenshots are retained for 14 days.
+
+Apply V6 with Flyway before serving the Phase 4 application. V1–V5 are unchanged. Do not roll back by dropping
+identity or invitation data; restore the tested backup or forward-fix if the release must be reverted. SMTP must
+be configured for the environment. A failed delivery remains visible to an authorized operator for resend.

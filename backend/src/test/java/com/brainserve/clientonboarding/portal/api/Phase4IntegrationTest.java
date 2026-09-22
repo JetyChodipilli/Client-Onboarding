@@ -291,6 +291,8 @@ class Phase4IntegrationTest {
         UUID ungranted = UUID.randomUUID();
         jdbc.sql("INSERT INTO projects (id, organization_id, client_id, service_id, name, status, created_at, created_by, updated_at, updated_by, version) SELECT :id,organization_id,client_id,service_id,'Not shared','DRAFT',created_at,created_by,updated_at,updated_by,0 FROM projects WHERE id=:source")
                 .param("id", ungranted).param("source", projectId).update();
+        jdbc.sql("INSERT INTO onboarding_instances (id, organization_id, project_id, source_template_id, source_template_version_id, snapshot_version_number, snapshot_json, status, ready, started_at, created_at, created_by, updated_at, updated_by, version) SELECT :id, organization_id, :project, source_template_id, source_template_version_id, snapshot_version_number, snapshot_json, status, ready, started_at, created_at, created_by, updated_at, updated_by, 0 FROM onboarding_instances WHERE id=:source")
+                .param("id", UUID.randomUUID()).param("project", ungranted).param("source", onboardingId).update();
         mockMvc.perform(get("/api/v1/client-portal/projects/{id}", ungranted).cookie(client))
                 .andExpect(status().isNotFound());
         transition(client, step("ADMIN_GUIDE"), "IN_PROGRESS", 0).andExpect(status().isNotFound());
@@ -313,6 +315,9 @@ class Phase4IntegrationTest {
         transition(client, welcome, "SUBMITTED", 1).andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.steps[0].status").value("SUBMITTED"))
                 .andExpect(jsonPath("$.data.waitingFor").value("OUR_TEAM"));
+        jdbc.sql("UPDATE onboarding_step_instances SET status='NEEDS_REVISION' WHERE id=:id").param("id", welcome).update();
+        transition(client, welcome, "IN_PROGRESS", 2).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nextAction.actionable").value(true));
         mockMvc.perform(get("/api/v1/client-portal/projects?size=101").cookie(client)).andExpect(status().isBadRequest());
         mockMvc.perform(get("/api/v1/client-portal/projects").cookie(managerA)).andExpect(status().isForbidden());
     }
