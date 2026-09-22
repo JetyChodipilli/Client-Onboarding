@@ -12,6 +12,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -53,8 +56,10 @@ public class ClientPortalController {
 
     @GetMapping("/onboardings/{onboardingId}/client-invitations")
     ApiSuccess<List<ClientPortalService.InvitationView>> invitations(@PathVariable UUID onboardingId,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "50") @Min(1) @Max(100) int size,
                                                                      Authentication authentication) {
-        return ApiSuccess.of(service.invitations(CurrentPrincipal.require(authentication), onboardingId),
+        return ApiSuccess.of(service.invitations(CurrentPrincipal.require(authentication), onboardingId, page, size),
                 RequestIds.currentRequestId());
     }
 
@@ -105,8 +110,10 @@ public class ClientPortalController {
     }
 
     @GetMapping("/client-portal/projects")
-    ApiSuccess<List<ClientPortalService.PortalProjectView>> projects(Authentication authentication) {
-        return ApiSuccess.of(service.projectList(CurrentPrincipal.require(authentication)),
+    ApiSuccess<List<ClientPortalService.PortalProjectView>> projects(Authentication authentication,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "50") @Min(1) @Max(100) int size) {
+        return ApiSuccess.of(service.projectList(CurrentPrincipal.require(authentication), page, size),
                 RequestIds.currentRequestId());
     }
 

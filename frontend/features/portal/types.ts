@@ -45,6 +45,7 @@ export type PortalStep = {
   waitingFor: "YOUR_ACTION" | "OUR_TEAM" | "NONE";
   blockingReason?: string;
   actionable: boolean;
+  requiresReview: boolean;
   version: number;
 };
 

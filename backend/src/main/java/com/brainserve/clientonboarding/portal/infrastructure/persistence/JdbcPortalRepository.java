@@ -36,6 +36,7 @@ public class JdbcPortalRepository implements PortalRepository, ClientSessionAcce
                 JOIN client_contacts cc ON cc.organization_id = c.organization_id AND cc.client_id = c.id
                 WHERE oi.organization_id = :organizationId AND oi.id = :onboardingId
                   AND cc.id = :contactId AND cc.archived_at IS NULL AND c.archived_at IS NULL
+                  AND p.status NOT IN ('ARCHIVED', 'CANCELLED', 'COMPLETED')
                 """).param("organizationId", organizationId).param("onboardingId", onboardingId)
                 .param("contactId", contactId).query((rs, rowNum) -> new InvitationTarget(
                         rs.getObject("organization_id", UUID.class), rs.getString("organization_name"),
@@ -61,11 +62,13 @@ public class JdbcPortalRepository implements PortalRepository, ClientSessionAcce
     }
 
     @Override
-    public List<ClientInvitation> findInvitations(UUID organizationId, UUID onboardingId) {
+    public List<ClientInvitation> findInvitations(UUID organizationId, UUID onboardingId, int page, int size) {
         return jdbc.sql("""
                 SELECT * FROM client_invitations WHERE organization_id = :organizationId
                   AND onboarding_id = :onboardingId ORDER BY created_at DESC, id DESC
+                  LIMIT :size OFFSET :offset
                 """).param("organizationId", organizationId).param("onboardingId", onboardingId)
+                .param("size", size).param("offset", (long) page * size)
                 .query(this::mapInvitation).list();
     }
 
@@ -217,7 +220,7 @@ public class JdbcPortalRepository implements PortalRepository, ClientSessionAcce
                 JOIN clients c ON c.organization_id = cu.organization_id AND c.id = cu.client_id
                 JOIN users u ON u.id = cu.user_id
                 WHERE (""" + predicate
-                + ") AND o.status = 'ACTIVE' AND cu.status = 'ACTIVE' AND c.archived_at IS NULL");
+                + ") AND o.status = 'ACTIVE' AND cu.status = 'ACTIVE' AND c.archived_at IS NULL AND u.principal_type = 'CLIENT'");
         if (first instanceof UUID) spec = spec.param("userId", first).param("organizationId", second);
         else spec = spec.param("email", first).param("slug", second);
         return spec.query((rs, rowNum) -> new ClientSessionAccess(
@@ -228,17 +231,17 @@ public class JdbcPortalRepository implements PortalRepository, ClientSessionAcce
     }
 
     @Override
-    public List<PortalProject> findPortalProjects(UUID organizationId, UUID clientUserId) {
-        return portalProjectQuery("", organizationId, clientUserId, null).list();
+    public List<PortalProject> findPortalProjects(UUID organizationId, UUID clientUserId, int page, int size) {
+        return portalProjectQuery("", organizationId, clientUserId, null, page, size).list();
     }
 
     @Override
     public Optional<PortalProject> findPortalProject(UUID organizationId, UUID clientUserId, UUID projectId) {
-        return portalProjectQuery(" AND p.id = :projectId", organizationId, clientUserId, projectId).optional();
+        return portalProjectQuery(" AND p.id = :projectId", organizationId, clientUserId, projectId, 0, 1).optional();
     }
 
     private JdbcClient.MappedQuerySpec<PortalProject> portalProjectQuery(String extra, UUID organizationId,
-                                                                         UUID clientUserId, UUID projectId) {
+                                                                         UUID clientUserId, UUID projectId, int page, int size) {
         var spec = jdbc.sql("""
                 SELECT p.id project_id, p.name project_name, p.status project_status, c.name client_name,
                        oi.id onboarding_id, oi.status onboarding_status, oi.ready
@@ -247,8 +250,9 @@ public class JdbcPortalRepository implements PortalRepository, ClientSessionAcce
                 JOIN clients c ON c.organization_id = p.organization_id AND c.id = p.client_id
                 JOIN onboarding_instances oi ON oi.organization_id = p.organization_id AND oi.project_id = p.id
                 WHERE a.organization_id = :organizationId AND a.client_user_id = :clientUserId
-                  AND p.status <> 'ARCHIVED'""" + extra + " ORDER BY p.updated_at DESC, p.id")
-                .param("organizationId", organizationId).param("clientUserId", clientUserId);
+                  AND p.status <> 'ARCHIVED'""" + extra + " ORDER BY p.updated_at DESC, p.id LIMIT :size OFFSET :offset")
+                .param("organizationId", organizationId).param("clientUserId", clientUserId)
+                .param("size", size).param("offset", (long) page * size);
         if (projectId != null) spec = spec.param("projectId", projectId);
         return spec.query((rs, rowNum) -> new PortalProject(rs.getObject("project_id", UUID.class),
                 rs.getString("project_name"), rs.getString("project_status"), rs.getString("client_name"),

@@ -299,7 +299,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
               ))}
             </div>
           </section>
-          <InvitationPanel onboardingId={onboarding.onboarding.id} clientId={project.clientId} onboardingStatus={onboarding.onboarding.status} />
+          <InvitationPanel onboardingId={onboarding.onboarding.id} clientId={project.clientId} onboardingStatus={onboarding.onboarding.status} onChanged={load} />
         </>
       )}
     </>

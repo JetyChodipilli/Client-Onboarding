@@ -11,10 +11,11 @@ import { operationsApi } from "./operations-api";
 import { errorMessage } from "./operations-pages";
 import type { ClientContact, ClientInvitation } from "./types";
 
-export function InvitationPanel({ onboardingId, clientId, onboardingStatus }: {
+export function InvitationPanel({ onboardingId, clientId, onboardingStatus, onChanged }: {
   onboardingId: string;
   clientId: string;
   onboardingStatus: string;
+  onChanged?: () => void;
 }) {
   const user = useCurrentUser();
   const [contacts, setContacts] = useState<ClientContact[]>([]);
@@ -25,6 +26,7 @@ export function InvitationPanel({ onboardingId, clientId, onboardingStatus }: {
   const [pending, setPending] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState<string>();
   const [error, setError] = useState("");
+  const [page, setPage] = useState(0);
   const canInvite = user.permissions.includes("ONBOARDING_INVITE") && user.permissions.includes("CLIENT_READ");
 
   useEffect(() => {
@@ -32,7 +34,7 @@ export function InvitationPanel({ onboardingId, clientId, onboardingStatus }: {
     let active = true;
     Promise.all([
         operationsApi.contacts(clientId),
-        operationsApi.invitations(onboardingId),
+        operationsApi.invitations(onboardingId, page),
       ]).then(([contactData, invitationData]) => {
       if (!active) return;
       const activeContacts = contactData.filter((contact) => !contact.archivedAt);
@@ -42,7 +44,7 @@ export function InvitationPanel({ onboardingId, clientId, onboardingStatus }: {
     }).catch((cause) => { if (active) setError(errorMessage(cause)); })
       .finally(() => { if (active) setLoaded(true); });
     return () => { active = false; };
-  }, [canInvite, clientId, onboardingId]);
+  }, [canInvite, clientId, onboardingId, page]);
 
   async function invite() {
     if (!contactId) return;
@@ -50,6 +52,7 @@ export function InvitationPanel({ onboardingId, clientId, onboardingStatus }: {
     try {
       const created = await operationsApi.inviteClient(onboardingId, contactId, role, crypto.randomUUID());
       setInvitations((values) => [created, ...values]);
+      onChanged?.();
     } catch (cause) { setError(errorMessage(cause)); }
     finally { setPending(false); }
   }
@@ -86,5 +89,10 @@ export function InvitationPanel({ onboardingId, clientId, onboardingStatus }: {
         {invitation.status === "ACCEPTED" && <span className="inline-flex items-center gap-2 text-sm font-semibold text-success"><CheckCircle2 aria-hidden="true" className="size-4" />Portal active</span>}
       </Card>)}
     </div>
+    {loaded && (page > 0 || invitations.length >= 50) && <nav aria-label="Invitation pages" className="mt-4 flex items-center gap-4">
+      <Button variant="outline" disabled={page === 0} onClick={() => { setLoaded(false); setError(""); setPage(page - 1); }}>Previous</Button>
+      <span>Page {page + 1}</span>
+      <Button variant="outline" disabled={invitations.length < 50} onClick={() => { setLoaded(false); setError(""); setPage(page + 1); }}>Next</Button>
+    </nav>}
   </section>;
 }

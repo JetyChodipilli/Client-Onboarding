@@ -46,7 +46,7 @@ export const operationsApi = {
   onboardingForProject: (projectId: string) => apiRequest<OnboardingView>(`/api/v1/projects/${projectId}/onboarding`),
   startOnboarding: (projectId: string, templateVersionId: string, projectVersion: number, idempotencyKey: string) => apiRequest<OnboardingView>(`/api/v1/projects/${projectId}/onboarding`, json("POST", { templateVersionId, projectVersion }, { "Idempotency-Key": idempotencyKey })),
   transitionStep: (stepId: string, targetStatus: OnboardingStep["status"], version: number) => apiRequest<OnboardingView>(`/api/v1/onboarding-steps/${stepId}/transition`, json("POST", { targetStatus, version })),
-  invitations: (onboardingId: string) => apiRequest<ClientInvitation[]>(`/api/v1/onboardings/${onboardingId}/client-invitations`),
+  invitations: (onboardingId: string, page = 0) => apiRequest<ClientInvitation[]>(`/api/v1/onboardings/${onboardingId}/client-invitations?page=${page}&size=50`),
   inviteClient: (onboardingId: string, contactId: string, role: ClientInvitation["role"], idempotencyKey: string) => apiRequest<ClientInvitation>(`/api/v1/onboardings/${onboardingId}/client-invitations`, json("POST", { contactId, role }, { "Idempotency-Key": idempotencyKey })),
   resendClientInvitation: (invitationId: string, version: number) => apiRequest<ClientInvitation>(`/api/v1/client-invitations/${invitationId}/resend`, json("POST", { version })),
   revokeClientInvitation: (invitationId: string, version: number) => apiRequest<ClientInvitation>(`/api/v1/client-invitations/${invitationId}/revoke`, json("POST", { version })),

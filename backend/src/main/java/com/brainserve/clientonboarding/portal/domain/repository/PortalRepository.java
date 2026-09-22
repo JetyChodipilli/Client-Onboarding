@@ -11,7 +11,7 @@ public interface PortalRepository {
     Optional<InvitationTarget> findInvitationTarget(UUID organizationId, UUID onboardingId, UUID contactId);
     Optional<ClientInvitation> findInvitation(UUID organizationId, UUID invitationId);
     Optional<ClientInvitation> findInvitationByTokenHash(String tokenHash);
-    List<ClientInvitation> findInvitations(UUID organizationId, UUID onboardingId);
+    List<ClientInvitation> findInvitations(UUID organizationId, UUID onboardingId, int page, int size);
     void insertInvitation(ClientInvitation invitation, UUID actorId);
     boolean rotateInvitation(UUID organizationId, UUID invitationId, String tokenHash, Instant expiresAt,
                              long version, UUID actorId, Instant now);
@@ -26,7 +26,7 @@ public interface PortalRepository {
                              UUID actorId, Instant now);
     Optional<ClientSessionAccess> findClientAccess(UUID userId, UUID organizationId);
     Optional<ClientSessionAccess> findClientAccess(String normalizedEmail, String normalizedSlug);
-    List<PortalProject> findPortalProjects(UUID organizationId, UUID clientUserId);
+    List<PortalProject> findPortalProjects(UUID organizationId, UUID clientUserId, int page, int size);
     Optional<PortalProject> findPortalProject(UUID organizationId, UUID clientUserId, UUID projectId);
     Optional<String> findHelpEmail(UUID organizationId, UUID projectId);
 

@@ -114,9 +114,9 @@ public class ClientPortalService {
     }
 
     @PreAuthorize("hasAuthority('ONBOARDING_INVITE')")
-    public List<InvitationView> invitations(TenantPrincipal principal, UUID onboardingId) {
+    public List<InvitationView> invitations(TenantPrincipal principal, UUID onboardingId, int page, int size) {
         onboardings.findById(principal.organizationId(), onboardingId).orElseThrow(this::notFound);
-        return portal.findInvitations(principal.organizationId(), onboardingId).stream().map(this::view).toList();
+        return portal.findInvitations(principal.organizationId(), onboardingId, page, size).stream().map(this::view).toList();
     }
 
     @PreAuthorize("hasAuthority('ONBOARDING_INVITE')")
@@ -128,6 +128,7 @@ public class ClientPortalService {
         if (current.status() != ClientInvitation.Status.PENDING) throw invitationUnavailable();
         var target = portal.findInvitationTarget(principal.organizationId(), current.onboardingId(), current.contactId())
                 .orElseThrow(this::notFound);
+        requireInvitable(target);
         String raw = tokens.issue();
         Instant now = clock.instant();
         if (!portal.rotateInvitation(principal.organizationId(), invitationId, tokens.hash(raw),
@@ -158,7 +159,7 @@ public class ClientPortalService {
         ClientInvitation invitation = token(rawToken);
         var target = portal.findInvitationTarget(invitation.organizationId(), invitation.onboardingId(),
                 invitation.contactId()).orElseThrow(this::invalidToken);
-        return new PublicInvitation(invitation.usableAt(clock.instant()) ? "VALID" : publicState(invitation),
+        return new PublicInvitation(invitation.usableAt(clock.instant()) && invitable(target) ? "VALID" : publicState(invitation),
                 target.organizationName(), target.organizationSlug(), target.clientName(), target.projectName(),
                 target.contactName(), invitation.invitedEmail(), invitation.expiresAt());
     }
@@ -171,7 +172,12 @@ public class ClientPortalService {
         if (!invitation.usableAt(now)) throw invalidToken();
         var target = portal.findInvitationTarget(invitation.organizationId(), invitation.onboardingId(),
                 invitation.contactId()).orElseThrow(this::invalidToken);
+        if (!invitable(target)) throw invalidToken();
         String email = normalizeEmail(invitation.invitedEmail());
+        String subjectKey = tokens.hash("client-accept|" + email);
+        rateLimiter.check(metadata.ipHash(), subjectKey);
+        // Count every attempt; failed transactions must not erase brute-force protection.
+        rateLimiter.failure(metadata.ipHash(), subjectKey);
         UserAccount user = identities.findByEmail(email).orElse(null);
         if (user == null) {
             user = new UserAccount(UUID.randomUUID(), email, target.contactName(), passwords.encode(password),
@@ -201,6 +207,7 @@ public class ClientPortalService {
         audit.append(invitation.organizationId(), user.id(), "CLIENT_INVITATION_ACCEPTED", "CLIENT_INVITATION",
                 invitation.id(), Map.of("status", "PENDING"), Map.of("status", "ACCEPTED",
                         "projectId", invitation.projectId()), "API", metadata.ipHash());
+        rateLimiter.success(subjectKey);
         return new AcceptanceView("Invitation accepted. Sign in to continue.", target.organizationSlug(),
                 target.projectName());
     }
@@ -241,6 +248,9 @@ public class ClientPortalService {
     public void forgotPassword(String emailValue, String slugValue, RequestMetadata metadata) {
         String email = normalizeEmail(emailValue);
         String slug = slugValue == null ? "" : slugValue.trim().toLowerCase(Locale.ROOT);
+        String subjectKey = tokens.hash("client-reset|" + email + "|" + slug);
+        rateLimiter.check(metadata.ipHash(), subjectKey);
+        rateLimiter.failure(metadata.ipHash(), subjectKey);
         portal.findClientAccess(email, slug).ifPresent(access -> {
             String raw = tokens.issue();
             Instant now = clock.instant();
@@ -261,8 +271,8 @@ public class ClientPortalService {
     }
 
     @PreAuthorize("hasAuthority('CLIENT_PORTAL_READ')")
-    public List<PortalProjectView> projectList(TenantPrincipal principal) {
-        return portal.findPortalProjects(principal.organizationId(), principal.membershipId()).stream()
+    public List<PortalProjectView> projectList(TenantPrincipal principal, int page, int size) {
+        return portal.findPortalProjects(principal.organizationId(), principal.membershipId(), page, size).stream()
                 .map(project -> summary(principal, project)).toList();
     }
 
@@ -274,12 +284,14 @@ public class ClientPortalService {
                 .orElseThrow(this::notFound);
         List<OnboardingStepInstance> all = onboardings.findSteps(principal.organizationId(), onboarding.id());
         List<OnboardingStepInstance> visible = clientSteps(principal, all);
-        List<PortalStep> steps = visible.stream().map(step -> portalStep(step, visible)).toList();
-        PortalStep next = steps.stream().filter(step -> "YOUR_ACTION".equals(step.waitingFor())).findFirst()
+        boolean active = onboarding.status() == OnboardingInstance.Status.IN_PROGRESS;
+        List<PortalStep> steps = visible.stream().map(step -> portalStep(step, visible, active)).toList();
+        PortalStep next = steps.stream().filter(step -> active && "YOUR_ACTION".equals(step.waitingFor()))
+                .sorted(Comparator.comparing(PortalStep::actionable).reversed()).findFirst()
                 .orElse(null);
         String waiting = next == null && steps.stream().anyMatch(step -> "OUR_TEAM".equals(step.waitingFor()))
                 ? "OUR_TEAM" : next == null ? "NONE" : "YOU";
-        String status = next != null ? "ACTION_REQUIRED" : "OUR_TEAM".equals(waiting) ? "WAITING" :
+        String status = !active ? onboarding.status().name() : next != null ? "ACTION_REQUIRED" : "OUR_TEAM".equals(waiting) ? "WAITING" :
                 onboarding.ready() ? "READY" : onboarding.status().name();
         String helpEmail = portal.findHelpEmail(principal.organizationId(), projectId).orElse(null);
         return new PortalDashboard(project.projectId(), project.projectName(), project.projectStatus(),
@@ -297,6 +309,11 @@ public class ClientPortalService {
                                       ClientStepCommand command, RequestMetadata metadata) {
         PortalRepository.PortalProject project = portal.findPortalProject(principal.organizationId(),
                 principal.membershipId(), projectId).orElseThrow(this::notFound);
+        OnboardingInstance onboarding = onboardings.findById(principal.organizationId(), project.onboardingId())
+                .orElseThrow(this::notFound);
+        if (onboarding.status() != OnboardingInstance.Status.IN_PROGRESS) {
+            throw new DomainException("ONBOARDING_NOT_ACTIVE", "This onboarding is not accepting updates.", HttpStatus.CONFLICT);
+        }
         OnboardingStepInstance step = onboardings.findStep(principal.organizationId(), stepId)
                 .filter(value -> value.onboardingId().equals(project.onboardingId()) && value.clientVisible()
                         && value.applicable())
@@ -320,8 +337,6 @@ public class ClientPortalService {
         if (!onboardings.updateStepStatus(principal.organizationId(), stepId, step.status(), target,
                 command.version(), principal.userId(), now)) throw conflict();
         onboardings.refreshAvailability(principal.organizationId(), step.onboardingId(), principal.userId(), now);
-        OnboardingInstance onboarding = onboardings.findById(principal.organizationId(), step.onboardingId())
-                .orElseThrow(this::notFound);
         List<OnboardingStepInstance> updated = onboardings.findSteps(principal.organizationId(), step.onboardingId());
         if (!onboardings.updateReadiness(principal.organizationId(), onboarding.id(), ReadinessPolicy.ready(updated),
                 onboarding.version(), principal.userId(), now)) throw conflict();
@@ -349,7 +364,7 @@ public class ClientPortalService {
                 .sorted(Comparator.comparingInt(OnboardingStepInstance::displayOrder)).toList();
     }
 
-    private PortalStep portalStep(OnboardingStepInstance step, List<OnboardingStepInstance> all) {
+    private PortalStep portalStep(OnboardingStepInstance step, List<OnboardingStepInstance> all, boolean active) {
         String waitingFor;
         String reason = null;
         if (List.of(OnboardingStepInstance.Status.AVAILABLE, OnboardingStepInstance.Status.IN_PROGRESS,
@@ -369,13 +384,22 @@ public class ClientPortalService {
                 reason = "Your team is completing a prerequisite.";
             }
         } else waitingFor = "NONE";
-        boolean actionable = List.of(TemplateStep.StepType.WELCOME, TemplateStep.StepType.INSTRUCTION,
+        boolean actionable = active && List.of(TemplateStep.StepType.WELCOME, TemplateStep.StepType.INSTRUCTION,
                 TemplateStep.StepType.EXTERNAL_LINK, TemplateStep.StepType.VIDEO_GUIDE).contains(step.stepType())
                 && (step.status() == OnboardingStepInstance.Status.AVAILABLE
                     || step.status() == OnboardingStepInstance.Status.IN_PROGRESS);
         return new PortalStep(step.id(), step.name(), step.description(), step.stepType().name(),
                 step.status().name(), step.required(), step.blocking(), step.dueAt(), waitingFor, reason,
-                actionable, step.version());
+                actionable, step.requiresReview(), step.version());
+    }
+
+    private boolean invitable(PortalRepository.InvitationTarget target) {
+        return List.of("DRAFT", "INVITED", "IN_PROGRESS").contains(target.onboardingStatus());
+    }
+
+    private void requireInvitable(PortalRepository.InvitationTarget target) {
+        if (!invitable(target)) throw new DomainException("ONBOARDING_NOT_INVITABLE",
+                "This onboarding can no longer accept client invitations.", HttpStatus.CONFLICT);
     }
 
     private void deliver(PortalRepository.InvitationTarget target, ClientInvitation invitation,
@@ -447,7 +471,7 @@ public class ClientPortalService {
                                     String onboardingStatus, int progress, long pendingRequirements) { }
     public record PortalStep(UUID id, String name, String description, String type, String status,
                              boolean required, boolean blocking, Instant deadline, String waitingFor,
-                             String blockingReason, boolean actionable, long version) { }
+                             String blockingReason, boolean actionable, boolean requiresReview, long version) { }
     public record PortalDashboard(UUID projectId, String projectName, String projectStatus, String clientName,
                                   UUID onboardingId, String onboardingStatus, String currentStatus, int progress,
                                   PortalStep nextAction, String waitingFor, String blockingReason,

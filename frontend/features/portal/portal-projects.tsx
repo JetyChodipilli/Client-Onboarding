@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { ApiClientError } from "@/lib/api-client";
 import { portalApi } from "./portal-api";
 import type { PortalProject } from "./types";
@@ -13,12 +14,15 @@ import type { PortalProject } from "./types";
 export function PortalProjects() {
   const [projects, setProjects] = useState<PortalProject[]>();
   const [error, setError] = useState("");
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
-    portalApi.projects().then(setProjects).catch((cause) => {
-      setError(cause instanceof ApiClientError ? cause.message : "Projects could not be loaded.");
+    let active = true;
+    portalApi.projects(page).then((value) => { if (active) setProjects(value); }).catch((cause) => {
+      if (active) setError(cause instanceof ApiClientError ? cause.message : "Projects could not be loaded.");
     });
-  }, []);
+    return () => { active = false; };
+  }, [page]);
 
   return (
     <>
@@ -40,7 +44,7 @@ export function PortalProjects() {
         </div>
       )}
 
-      {projects?.length === 0 && (
+      {page === 0 && projects?.length === 0 && (
         <Card className="mt-8 text-center">
           <BriefcaseBusiness aria-hidden="true" className="mx-auto size-8 text-muted-foreground" />
           <h2 className="mt-4 text-xl font-bold">No projects are assigned</h2>
@@ -99,6 +103,11 @@ export function PortalProjects() {
           </Link>
         ))}
       </div>
+      {projects && (page > 0 || projects.length === 50) && <nav aria-label="Project pages" className="mt-6 flex items-center gap-4">
+        <Button variant="outline" disabled={page === 0} onClick={() => { setProjects(undefined); setError(""); setPage(page - 1); }}>Previous</Button>
+        <span>Page {page + 1}</span>
+        <Button variant="outline" disabled={projects.length < 50} onClick={() => { setProjects(undefined); setError(""); setPage(page + 1); }}>Next</Button>
+      </nav>}
     </>
   );
 }

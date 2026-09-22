@@ -53,8 +53,8 @@ test.describe("Phase 4 client invitation and portal", () => {
   test("shows status progress next action blocker deadline and help", async ({ page }) => {
     await mock(page); await page.goto("/portal/projects/project-1");
     await expect(page.getByRole("heading", { name: "Acme Launch" })).toBeVisible();
-    await expect(page.getByText("Your action")).toBeVisible();
-    await expect(page.getByText("Waiting for our team")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your action", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Waiting for our team", exact: true })).toBeVisible();
     await expect(page.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "25");
     await expect(page.getByText("Required deadline")).toBeVisible();
     await expect(page.getByText("Available help")).toBeVisible();
