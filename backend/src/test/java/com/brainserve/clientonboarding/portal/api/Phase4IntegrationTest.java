@@ -203,6 +203,14 @@ class Phase4IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.steps", hasSize(1)))
                 .andExpect(jsonPath("$.data.steps[0].name").value("Welcome to the project"));
+        notifications.failNextPasswordReset();
+        mockMvc.perform(post("/api/v1/client-auth/forgot-password").with(csrf())
+                        .contentType("application/json")
+                        .content(json.writeValueAsString(java.util.Map.of("email", "client@portal.test",
+                                "organizationSlug", "portal-a"))))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.data.message").value(
+                        "If the account is eligible, a reset link has been sent."));
     }
 
     private void seedOnboarding() {

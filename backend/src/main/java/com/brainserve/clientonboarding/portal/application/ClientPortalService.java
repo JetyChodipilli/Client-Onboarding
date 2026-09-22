@@ -246,9 +246,14 @@ public class ClientPortalService {
             Instant now = clock.instant();
             auth.insertPasswordResetToken(UUID.randomUUID(), access.organizationId(), access.user().id(),
                     tokens.hash(raw), now.plus(properties.tokenDuration()), now);
-            notifications.sendPasswordReset(access.user().email(), access.user().displayName(),
-                    properties.publicAppUrl() + "/client/reset-password?token="
-                            + URLEncoder.encode(raw, StandardCharsets.UTF_8));
+            try {
+                notifications.sendPasswordReset(access.user().email(), access.user().displayName(),
+                        properties.publicAppUrl() + "/client/reset-password?token="
+                                + URLEncoder.encode(raw, StandardCharsets.UTF_8));
+            } catch (RuntimeException exception) {
+                LOGGER.warn("Client password-reset delivery failed for userId={} organizationId={}",
+                        access.user().id(), access.organizationId(), exception);
+            }
             audit.append(access.organizationId(), access.user().id(), "CLIENT_PASSWORD_RESET_REQUESTED",
                     "USER", access.user().id(), Map.of(), Map.of("scope", "CLIENT_PORTAL"),
                     "API", metadata.ipHash());

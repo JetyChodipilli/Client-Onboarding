@@ -16,17 +16,27 @@ public class TestSecurityNotificationConfiguration {
 
     public static final class TestNotificationSender implements SecurityNotificationPort {
         private final AtomicBoolean failNextClientInvitation = new AtomicBoolean();
+        private final AtomicBoolean failNextPasswordReset = new AtomicBoolean();
 
         public void failNextClientInvitation() {
             failNextClientInvitation.set(true);
         }
 
+        public void failNextPasswordReset() {
+            failNextPasswordReset.set(true);
+        }
+
         public void reset() {
             failNextClientInvitation.set(false);
+            failNextPasswordReset.set(false);
         }
 
         @Override public void sendVerification(String recipient, String displayName, String verificationUrl) { }
-        @Override public void sendPasswordReset(String recipient, String displayName, String resetUrl) { }
+        @Override public void sendPasswordReset(String recipient, String displayName, String resetUrl) {
+            if (failNextPasswordReset.getAndSet(false)) {
+                throw new IllegalStateException("simulated password-reset delivery failure");
+            }
+        }
         @Override public void sendOrganizationInvitation(String recipient, String displayName,
                                                           String organizationName, String invitationUrl) { }
         @Override public void sendClientInvitation(String recipient, String displayName,

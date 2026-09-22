@@ -105,7 +105,7 @@ public class JdbcPortalRepository implements PortalRepository, ClientSessionAcce
     @Override
     public boolean revokeInvitation(UUID organizationId, UUID invitationId, long version, UUID actorId, Instant now) {
         return jdbc.sql("""
-                UPDATE client_invitations SET status = 'REVOKED', revoked_at = :now,
+                UPDATE client_invitations SET status = 'REVOKED', pending_guard = NULL, revoked_at = :now,
                     updated_at = :now, updated_by = :actor, version = version + 1
                 WHERE organization_id = :organizationId AND id = :id AND version = :version
                   AND status = 'PENDING'
@@ -182,7 +182,7 @@ public class JdbcPortalRepository implements PortalRepository, ClientSessionAcce
     public boolean acceptInvitation(UUID organizationId, UUID invitationId, long version, UUID userId,
                                     UUID actorId, Instant now) {
         return jdbc.sql("""
-                UPDATE client_invitations SET status = 'ACCEPTED', accepted_at = :now,
+                UPDATE client_invitations SET status = 'ACCEPTED', pending_guard = NULL, accepted_at = :now,
                     accepted_by = :userId, updated_at = :now, updated_by = :actor, version = version + 1
                 WHERE organization_id = :organizationId AND id = :id AND version = :version
                   AND status = 'PENDING' AND expires_at > :now AND revoked_at IS NULL

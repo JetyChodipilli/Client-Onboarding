@@ -22,6 +22,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);
     private final OrganizationAccessRepository accessRepository;
     private final ClientSessionAccessPort clientAccess;
     private final OrganizationAdminRepository organizationRepository;
@@ -220,8 +223,13 @@ public class AuthService {
                     Instant now = clock.instant();
                     authRepository.insertPasswordResetToken(UUID.randomUUID(), access.organization().id(),
                             access.user().id(), tokens.hash(raw), now.plus(properties.tokenDuration()), now);
-                    notifications.sendPasswordReset(access.user().email(), access.user().displayName(),
-                            properties.publicAppUrl() + "/reset-password?token=" + url(raw));
+                    try {
+                        notifications.sendPasswordReset(access.user().email(), access.user().displayName(),
+                                properties.publicAppUrl() + "/reset-password?token=" + url(raw));
+                    } catch (RuntimeException exception) {
+                        LOGGER.warn("Password-reset delivery failed for userId={} organizationId={}",
+                                access.user().id(), access.organization().id(), exception);
+                    }
                     audit.append(access.organization().id(), access.user().id(), "PASSWORD_RESET_REQUESTED",
                             "USER", access.user().id(), Map.of(), Map.of(), "API", metadata.ipHash());
                 });
@@ -288,9 +296,14 @@ public class AuthService {
                     authRepository.insertOrganizationInvitation(UUID.randomUUID(), access.organization().id(),
                             access.membershipId(), access.user().id(), tokens.hash(raw),
                             now.plus(properties.tokenDuration()), now);
-                    notifications.sendOrganizationInvitation(access.user().email(), access.user().displayName(),
-                            access.organization().name(), properties.publicAppUrl()
-                                    + "/accept-invitation?token=" + url(raw));
+                    try {
+                        notifications.sendOrganizationInvitation(access.user().email(), access.user().displayName(),
+                                access.organization().name(), properties.publicAppUrl()
+                                        + "/accept-invitation?token=" + url(raw));
+                    } catch (RuntimeException exception) {
+                        LOGGER.warn("Organization-invitation resend delivery failed for membershipId={} organizationId={}",
+                                access.membershipId(), access.organization().id(), exception);
+                    }
                     audit.append(access.organization().id(), access.user().id(),
                             "ORGANIZATION_INVITATION_RESENT", "ORGANIZATION_MEMBERSHIP",
                             access.membershipId(), Map.of(), Map.of(), "API", metadata.ipHash());

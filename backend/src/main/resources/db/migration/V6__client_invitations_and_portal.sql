@@ -4,8 +4,10 @@ INSERT INTO permissions (id, code, description, created_at) VALUES
 
 ALTER TABLE client_users
     ADD COLUMN client_role varchar(24) NOT NULL DEFAULT 'MEMBER'
-        CHECK (client_role IN ('ADMIN', 'MEMBER')),
-    ADD COLUMN activated_at timestamptz,
+        CHECK (client_role IN ('ADMIN', 'MEMBER'));
+ALTER TABLE client_users
+    ADD COLUMN activated_at timestamptz;
+ALTER TABLE client_users
     ADD CONSTRAINT uq_client_users_org_client_id UNIQUE (organization_id, client_id, id);
 
 ALTER TABLE client_contacts
@@ -39,6 +41,7 @@ CREATE TABLE client_invitations (
     client_role varchar(24) NOT NULL CHECK (client_role IN ('ADMIN', 'MEMBER')),
     token_hash char(64) NOT NULL UNIQUE,
     status varchar(24) NOT NULL CHECK (status IN ('PENDING', 'ACCEPTED', 'REVOKED')),
+    pending_guard boolean DEFAULT TRUE,
     delivery_status varchar(24) NOT NULL CHECK (delivery_status IN ('PENDING', 'SENT', 'FAILED')),
     delivery_error varchar(500),
     expires_at timestamptz NOT NULL,
@@ -52,6 +55,8 @@ CREATE TABLE client_invitations (
     updated_at timestamptz NOT NULL,
     updated_by uuid NOT NULL REFERENCES users(id),
     version bigint NOT NULL DEFAULT 0,
+    CHECK ((status = 'PENDING' AND pending_guard IS TRUE)
+        OR (status <> 'PENDING' AND pending_guard IS NULL)),
     UNIQUE (organization_id, id),
     FOREIGN KEY (organization_id, client_id, contact_id)
         REFERENCES client_contacts(organization_id, client_id, id),
@@ -62,8 +67,7 @@ CREATE TABLE client_invitations (
 );
 
 CREATE UNIQUE INDEX uq_pending_client_invitation
-    ON client_invitations (organization_id, onboarding_id, contact_id)
-    WHERE status = 'PENDING';
+    ON client_invitations (organization_id, onboarding_id, contact_id, pending_guard);
 CREATE INDEX idx_client_invitations_onboarding
     ON client_invitations (organization_id, onboarding_id, created_at DESC);
 CREATE INDEX idx_client_invitations_token_active
