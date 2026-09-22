@@ -1,29 +1,35 @@
 # Client Onboarding & Relationship Management Platform
 
-A multi-tenant B2B onboarding system built as a **Spring Boot modular monolith** with a Next.js frontend and PostgreSQL as the source of truth.
+A multi-tenant B2B onboarding system built as a **Spring Boot modular monolith** with PostgreSQL as the source of truth and a Next.js frontend.
 
-The current `main` branch is implemented through **Phase 3**: identity and tenancy, client/project core, and the versioned workflow engine.
+I kept this as one deployable backend on purpose. The hard part here is not service-to-service networking; it is keeping identity, tenancy, projects, workflow definitions, workflow execution, and audit history consistent while the product is still evolving.
 
-> This is not a microservices demo. That is deliberate.
+The current `main` branch is implemented through **Phase 3**.
 
-## Why the architecture looks like this
+## Why a modular monolith
 
-Client onboarding gets messy when identity, project setup, workflow definitions and audit history are allowed to blur together.
+Splitting a young domain into services too early would add network failure modes before the boundaries were stable.
 
-I kept one deployable backend, but made the module boundaries explicit. That gives the codebase one transaction boundary and one source of truth without turning every domain boundary into a network call.
+So the backend keeps one transaction boundary while still enforcing module boundaries in code.
 
-```mermaid
-flowchart LR
-    Browser["Internal / client browser"] --> Web["Next.js"]
-    Web --> API["Spring Boot /api/v1"]
-    API --> DB[("PostgreSQL")]
+```text
+Browser
+  ↓
+Next.js
+  ↓
+Spring Boot /api/v1
+  ↓
+Domain modules
+  ↓
+PostgreSQL
 ```
 
-Redis and Kafka are intentionally absent at this stage. The current workload does not justify adding distributed infrastructure just to make the architecture diagram look more complicated.
+Redis and Kafka are intentionally absent from this project at the moment. I would rather add them when a real workload requires them than because the architecture diagram looks better with more boxes.
 
 ## What is on `main`
 
 ### Phase 1 — identity and tenancy
+
 - users, organizations and memberships
 - server-side sessions
 - RBAC and permission checks
@@ -32,6 +38,7 @@ Redis and Kafka are intentionally absent at this stage. The current workload doe
 - security audit records
 
 ### Phase 2 — client and project core
+
 - clients and contacts
 - service catalog
 - projects and project members
@@ -40,8 +47,9 @@ Redis and Kafka are intentionally absent at this stage. The current workload doe
 - activity history
 
 ### Phase 3 — workflow engine
+
 - workflow templates and numbered versions
-- draft/publish lifecycle
+- draft / publish lifecycle
 - ordered steps
 - dependency graphs
 - safe conditions
@@ -50,28 +58,28 @@ Redis and Kafka are intentionally absent at this stage. The current workload doe
 - progress and readiness rules
 - idempotent onboarding start
 
-## The workflow decision I did not want to get wrong
+## The workflow decision that matters most
 
-A workflow template can change tomorrow. An onboarding process that already started should not silently change with it.
+A template can change tomorrow. An onboarding process that already started should not silently change with it.
 
-Published workflow versions are therefore immutable. Starting onboarding stores both an exact JSON snapshot and normalized step instances in one transaction.
+Published workflow versions are therefore immutable. When onboarding starts, the backend stores both the exact JSON snapshot and normalized step instances in the same transaction.
 
-Dependencies reject dangling, duplicate, self and cyclic edges. Conditions use a fixed field/operator/value model instead of executing tenant-authored scripts.
+Dependencies reject dangling edges, duplicates, self-references, and cycles. Conditions use a fixed field / operator / value model instead of executing tenant-authored scripts.
 
-That adds more structure up front. It also makes historical onboarding explainable later.
+That gives the system more structure up front, but it also means an old onboarding run can still be explained later.
 
 Read the decision record: [ADR 0008 — versioned workflow snapshots](docs/adr/0008-versioned-workflow-snapshots.md).
 
-## Technology
+## Backend stack
 
 | Area | Stack |
 |---|---|
 | Backend | Java 17, Spring Boot 4.1, Spring Security, Spring Data JPA |
 | Data | PostgreSQL 17, Flyway |
-| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4 |
-| Backend tests | JUnit, Spring Boot Test, ArchUnit, Testcontainers |
-| Frontend tests | Vitest, React Testing Library, Playwright |
+| Backend testing | JUnit, Spring Boot Test, ArchUnit, Testcontainers |
 | Delivery | Docker Compose, GitHub Actions |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4 |
+| Frontend testing | Vitest, React Testing Library, Playwright |
 
 ## Run locally
 
@@ -125,7 +133,7 @@ Full Phase 3 gate:
 ./scripts/verify-phase-3.sh
 ```
 
-The reviewed Phase 3 branch passed backend, frontend, PostgreSQL/Chromium and production-container gates in [GitHub Actions run 35592880143](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/35592880143).
+The reviewed Phase 3 branch passed backend, frontend, PostgreSQL / Chromium, and production-container gates in [GitHub Actions run 35592880143](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/35592880143).
 
 ## Repository map
 
@@ -146,6 +154,6 @@ scripts/              Reproducible verification gates
 
 Phase 4 client invitations and client portal behavior are **not on `main` yet**.
 
-That boundary is intentional. I would rather keep the repository honest about what is implemented than describe roadmap work as finished.
+I keep that boundary explicit because I would rather have the README describe the code that exists today than turn roadmap work into marketing copy.
 
 Architecture notes: [docs/architecture/README.md](docs/architecture/README.md)
