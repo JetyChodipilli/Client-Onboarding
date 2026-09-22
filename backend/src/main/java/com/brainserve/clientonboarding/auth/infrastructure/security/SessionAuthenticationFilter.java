@@ -1,6 +1,7 @@
 package com.brainserve.clientonboarding.auth.infrastructure.security;
 
 import com.brainserve.clientonboarding.auth.application.SecureTokenService;
+import com.brainserve.clientonboarding.auth.application.ClientSessionAccessPort;
 import com.brainserve.clientonboarding.auth.application.MfaAssurance;
 import com.brainserve.clientonboarding.common.security.TenantPrincipal;
 import com.brainserve.clientonboarding.auth.domain.repository.AuthRepository;
@@ -28,17 +29,20 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
 
     private final AuthRepository authRepository;
     private final OrganizationAccessRepository accessRepository;
+    private final ClientSessionAccessPort clientAccess;
     private final SecureTokenService tokens;
     private final AuthProperties properties;
     private final Clock clock;
 
     public SessionAuthenticationFilter(AuthRepository authRepository,
                                        OrganizationAccessRepository accessRepository,
+                                       ClientSessionAccessPort clientAccess,
                                        SecureTokenService tokens,
                                        AuthProperties properties,
                                        Clock clock) {
         this.authRepository = authRepository;
         this.accessRepository = accessRepository;
+        this.clientAccess = clientAccess;
         this.tokens = tokens;
         this.properties = properties;
         this.clock = clock;
@@ -56,11 +60,12 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
                     authRepository.revokeSession(session.id(), now);
                     return;
                 }
-                accessRepository.findByUserAndOrganization(session.userId(), session.organizationId())
+                var internal = accessRepository.findByUserAndOrganization(session.userId(), session.organizationId())
                         .filter(access -> access.isUsableInternalAccess()
                                 && access.user().isActiveAt(now)
-                                && access.user().credentialVersion() == session.credentialVersion())
-                        .ifPresentOrElse(access -> {
+                                && access.user().credentialVersion() == session.credentialVersion());
+                if (internal.isPresent()) {
+                    var access = internal.get();
                             if (MfaAssurance.requiredFor(access.permissions()) && !session.hasMfaAssurance()) {
                                 authRepository.revokeSession(session.id(), now);
                                 return;
@@ -73,6 +78,22 @@ public class SessionAuthenticationFilter extends OncePerRequestFilter {
                             var authentication = UsernamePasswordAuthenticationToken.authenticated(
                                     principal, null, authorities);
                             SecurityContextHolder.getContext().setAuthentication(authentication);
+                            if (session.lastSeenAt().isBefore(now.minus(TOUCH_INTERVAL))) {
+                                authRepository.touchSession(session.id(), now);
+                            }
+                    return;
+                }
+                clientAccess.findByUserAndOrganization(session.userId(), session.organizationId())
+                        .filter(access -> access.user().isActiveAt(now)
+                                && access.user().credentialVersion() == session.credentialVersion())
+                        .ifPresentOrElse(access -> {
+                            var principal = new TenantPrincipal(access.user().id(), access.organizationId(),
+                                    access.organizationName(), access.organizationSlug(), access.clientUserId(),
+                                    access.user().email(), access.user().displayName(),
+                                    "CLIENT_" + access.clientRole(), access.permissions(), session.id(), false);
+                            var authorities = access.permissions().stream().map(SimpleGrantedAuthority::new).toList();
+                            SecurityContextHolder.getContext().setAuthentication(
+                                    UsernamePasswordAuthenticationToken.authenticated(principal, null, authorities));
                             if (session.lastSeenAt().isBefore(now.minus(TOUCH_INTERVAL))) {
                                 authRepository.touchSession(session.id(), now);
                             }

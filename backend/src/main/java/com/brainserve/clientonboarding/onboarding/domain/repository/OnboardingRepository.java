@@ -22,6 +22,8 @@ public interface OnboardingRepository {
     void refreshAvailability(UUID organizationId, UUID onboardingId, UUID actorId, Instant now);
     boolean updateReadiness(UUID organizationId, UUID onboardingId, boolean ready, long version,
                             UUID actorId, Instant now);
+    boolean updateStatus(UUID organizationId, UUID onboardingId, OnboardingInstance.Status current,
+                         OnboardingInstance.Status next, long version, UUID actorId, Instant now);
 
     record IdempotentCommand(UUID resourceId, String requestFingerprint) { }
 }

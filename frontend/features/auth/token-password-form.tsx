@@ -12,7 +12,7 @@ import { authApi } from "./auth-api";
 
 type Mode = "reset" | "verify" | "invitation";
 
-export function TokenPasswordForm({ mode, token }: { mode: Mode; token: string }) {
+export function TokenPasswordForm({ mode, token, continueHref = "/login" }: { mode: Mode; token: string; continueHref?: string }) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [show, setShow] = useState(false);
@@ -34,6 +34,6 @@ export function TokenPasswordForm({ mode, token }: { mode: Mode; token: string }
     finally { setPending(false); }
   }
 
-  if (done) return <><h2 className="text-2xl font-bold">You’re all set</h2><Alert tone="success" className="mt-5">{done}</Alert><Link href="/login" className="mt-6 inline-flex min-h-11 items-center rounded-md text-sm font-semibold text-primary hover:underline">Continue to sign in</Link></>;
+  if (done) return <><h2 className="text-2xl font-bold">You’re all set</h2><Alert tone="success" className="mt-5">{done}</Alert><Link href={continueHref} className="mt-6 inline-flex min-h-11 items-center rounded-md text-sm font-semibold text-primary hover:underline">Continue to sign in</Link></>;
   return <><h2 className="text-2xl font-bold">{labels[0]}</h2><p className="mt-2 text-sm text-muted-foreground">{labels[1]}</p>{error && <Alert tone="error" className="mt-5">{error}</Alert>}<form className="mt-7 space-y-5" onSubmit={submit} noValidate><FormField label="Password" htmlFor="password" hint="12–72 bytes, including uppercase, lowercase, and a number."><div className="relative"><Input id="password" type={show ? "text" : "password"} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="pr-12" aria-describedby="password-hint" /><button type="button" onClick={() => setShow((value) => !value)} className="absolute inset-y-0 right-0 grid w-12 cursor-pointer place-items-center rounded-r-md text-muted-foreground hover:text-foreground" aria-label={show ? "Hide password" : "Show password"}>{show ? <EyeOff aria-hidden="true" className="size-4" /> : <Eye aria-hidden="true" className="size-4" />}</button></div></FormField><FormField label="Confirm password" htmlFor="confirm"><Input id="confirm" type={show ? "text" : "password"} autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} /></FormField><Button type="submit" variant="accent" size="lg" className="w-full" disabled={pending}>{pending && <LoaderCircle aria-hidden="true" className="animate-spin" />}{pending ? "Saving…" : mode === "reset" ? "Reset password" : mode === "verify" ? "Activate account" : "Accept invitation"}</Button></form></>;
 }

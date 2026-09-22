@@ -1,17 +1,16 @@
 # Client Onboarding & Relationship Management Platform
 
 Production-oriented modular monolith for a multi-tenant B2B SaaS onboarding platform. The implemented
-boundary is Phase 3: identity and tenancy, client/project core, and the versioned workflow engine. Client
-invitations and portal behavior are intentionally absent because they belong to Phase 4.
+boundary is Phase 4: identity and tenancy, client/project core, the versioned workflow engine, secure client
+invitations, and a project-scoped client portal.
 
 ## Phase status
 
 - Implemented: Phase 0 foundation; Phase 1 identity/auth/RBAC/tenancy; Phase 2 clients, contacts, services,
-  and projects; Phase 3 workflow templates, versions, instances, steps, dependencies, conditions, and readiness.
-- Not started: Phase 4 client invitation and portal, and Phases 5–13.
-- Release evidence is recorded in `docs/phase-reports/phase-3.md`. The reviewed Phase 3 branch passed backend,
-  frontend, real-Chromium/PostgreSQL, and production-container gates in
-  [GitHub Actions run 35592880143](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/35592880143).
+  and projects; Phase 3 workflow templates, versions, instances, steps, dependencies, conditions, and readiness;
+  Phase 4 client invitation, activation, client authorization, and portal UX.
+- Not started: Phases 5–13.
+- Release evidence is recorded in `docs/phase-reports/phase-4.md`.
 
 ## Repository map
 
@@ -72,10 +71,10 @@ npx playwright install --with-deps chromium
 npm run test:e2e
 ```
 
-Or run the complete Phase 3 gate in an environment with PostgreSQL, Chromium, and Docker:
+Or run the complete Phase 4 gate in an environment with PostgreSQL, Chromium, and Docker:
 
 ```bash
-./scripts/verify-phase-3.sh
+./scripts/verify-phase-4.sh
 ```
 
 The backend starts Flyway automatically and validates migrations against PostgreSQL. Hibernate schema
@@ -98,7 +97,7 @@ See the [architecture overview](docs/architecture/README.md), [module map](docs/
 [state boundaries](docs/architecture/state-machine-boundaries.md), and
 [workflow ADR](docs/adr/0008-versioned-workflow-snapshots.md).
 
-## API surface through Phase 3
+## API surface through Phase 4
 
 - Identity: login, MFA, session refresh/logout, recovery, verification, internal employee invitations,
   organizations, members, roles, permissions, and audit reads.
@@ -107,10 +106,12 @@ See the [architecture overview](docs/architecture/README.md), [module map](docs/
 - Projects: client/service ownership, members, lifecycle transitions, activity history, and archive behavior.
 - Workflow: templates, draft versions, ordered steps, conditions, dependencies, publication, and archival.
 - Onboarding foundation: idempotent instance creation from a published version, instance reads, step transitions,
-  dependency unlocking, progress, and readiness. Client invitations and portal APIs are not present.
+  dependency unlocking, progress, and readiness.
+- Client portal: invitation create/list/resend/revoke/inspect/accept, separate client sign-in and recovery,
+  explicit project grants, project portfolio/dashboard, and constrained informational-step transitions.
 
 The static contract is in `docs/openapi/openapi.yaml`; the running application exposes `/v3/api-docs`.
 
 ## Phase boundary
 
-Do not add Phase 4 client invitations or portal behavior, or any Phase 5+ feature, until explicitly requested.
+Do not add Phase 5 forms/questionnaires or any later-phase feature until explicitly requested.

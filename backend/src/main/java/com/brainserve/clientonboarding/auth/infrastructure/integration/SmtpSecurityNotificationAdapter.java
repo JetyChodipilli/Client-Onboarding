@@ -47,6 +47,15 @@ public class SmtpSecurityNotificationAdapter implements SecurityNotificationPort
                         + invitationUrl + "\r\n\r\nThis link expires soon and can be used once.");
     }
 
+    @Override
+    public void sendClientInvitation(String recipient, String displayName, String organizationName,
+                                     String projectName, String invitationUrl) {
+        send(recipient, "Your " + projectName + " onboarding is ready",
+                "Hello " + displayName + ",\r\n\r\n" + organizationName
+                        + " invited you to complete onboarding for " + projectName + ":\r\n"
+                        + invitationUrl + "\r\n\r\nThis private link expires soon and can be used once.");
+    }
+
     private void send(String recipient, String subject, String body) {
         validateHeader(recipient);
         validateHeader(subject);

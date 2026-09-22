@@ -205,6 +205,18 @@ public class JdbcOnboardingRepository implements OnboardingRepository {
                 .update() == 1;
     }
 
+    @Override
+    public boolean updateStatus(UUID organizationId, UUID onboardingId, OnboardingInstance.Status current,
+                                OnboardingInstance.Status next, long version, UUID actorId, Instant now) {
+        return jdbc.sql("""
+                UPDATE onboarding_instances SET status = :next, updated_at = :now, updated_by = :actor,
+                    version = version + 1
+                WHERE organization_id = :organizationId AND id = :id AND status = :current AND version = :version
+                """).param("next", next.name()).param("now", timestamp(now)).param("actor", actorId)
+                .param("organizationId", organizationId).param("id", onboardingId)
+                .param("current", current.name()).param("version", version).update() == 1;
+    }
+
     private OnboardingInstance mapOnboarding(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
         return new OnboardingInstance(rs.getObject("id", UUID.class), rs.getObject("organization_id", UUID.class),
                 rs.getObject("project_id", UUID.class), rs.getObject("source_template_id", UUID.class),

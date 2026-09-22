@@ -15,8 +15,9 @@ flowchart TB
   Workers --> Providers["Provider adapters"]
 ```
 
-Through Phase 3 the system includes identity, organization, RBAC, server-side sessions, security notifications,
-MFA, audit persistence, tenant-owned client/project records, and the versioned workflow engine. Object storage
+Through Phase 4 the system includes identity, organization, RBAC, server-side sessions, security notifications,
+MFA, audit persistence, tenant-owned client/project records, the versioned workflow engine, secure client
+invitations, and a project-scoped client portal. Object storage
 and business-provider adapters remain deferred. Redis is deliberately excluded; account lockout plus a bounded
 per-node login limiter cover the current authentication surface, with distributed edge throttling required at
 deployment.
@@ -38,13 +39,15 @@ deployment.
 - Liveness is process-level; readiness verifies PostgreSQL.
 - Actuator exposes bounded health/metrics information only.
 
-## Implemented scope through Phase 3
+## Implemented scope through Phase 4
 
 - Phase 1 owns users, organizations, memberships, roles, permissions, security tokens, sessions, TOTP MFA,
   recovery codes, internal employee invitations, and security audit records.
 - Phase 2 owns clients, contacts, services, projects, project members, lifecycle, archive behavior, and activity.
 - Phase 3 owns versioned workflow templates, safe conditions, dependency graphs, onboarding snapshots, step
   instances, state validation, progress, and readiness.
+- Phase 4 owns client invitations, client-user activation, client-only session authorities, explicit project
+  access, portal progress/next-action views, and constrained informational-step actions.
 
-Phase 4 client invitations and portal behavior are absent. An onboarding instance is created in `DRAFT`; later
-phase lifecycle transitions are not simulated in Phase 3.
+Phase 5 form templates, responses, review, revision, and resubmission remain absent. Phase 4 does not simulate
+those handlers or any asset, billing, contract, platform-access, notification-engine, or activation behavior.

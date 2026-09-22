@@ -11,8 +11,8 @@ Read `docs/Client_Onboarding_PRD_SDLC_Implementation_Ready.docx` before changing
 - Before implementation, inspect the current code, module map, ADRs and phase report.
 - A feature is incomplete without validation, authorization, tenant-isolation, error-case and documentation coverage appropriate to its phase.
 - Never mark a placeholder, fake provider, permissive security shortcut or TODO-based critical path as production-ready.
-- Current implemented boundary: Phase 3. Do not introduce invitations, client-portal behavior, forms,
-  assets, billing, contracts, access collection, notifications, activation, or reporting without an
+- Current implemented boundary: Phase 4. Do not introduce forms, assets, billing, contracts, access
+  collection, generic notification/reminder infrastructure, activation, or reporting without an
   explicit request for the corresponding later phase.
 
 ## Backend rules
@@ -81,3 +81,14 @@ Before phase completion:
 - Readiness means every applicable blocking step is `COMPLETED`; required and blocking remain separate flags.
 - Step and onboarding lifecycles remain separate. Phase 3 creates instances in `DRAFT`; invitations and client
   portal transitions belong to Phase 4, while final approval/activation belongs to Phase 11.
+
+## Phase 4 portal invariants
+
+- `ClientContact` is business contact data; `ClientUser` is an authenticated principal. Never collapse them.
+- Invitation secrets are opaque, hash-only at rest, expiring, single-use, revocable, and rotated on resend.
+- Client sessions receive only `CLIENT_PORTAL_*` authorities and explicit project grants; they never inherit
+  internal role permissions or unscoped client access.
+- Portal reads derive organization/client/project scope from the authenticated principal and hide internal-only,
+  inapplicable, and unassigned steps.
+- Invitation delivery failure remains separate from authoritative invitation/onboarding state and can be retried.
+- Phase 4 transitions onboarding `DRAFT` to `INVITED` and acceptance to `IN_PROGRESS`; forms begin in Phase 5.

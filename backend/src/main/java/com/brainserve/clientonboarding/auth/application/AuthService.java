@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuthService {
     private final OrganizationAccessRepository accessRepository;
+    private final ClientSessionAccessPort clientAccess;
     private final OrganizationAdminRepository organizationRepository;
     private final IdentityRepository identityRepository;
     private final AuthRepository authRepository;
@@ -46,6 +47,7 @@ public class AuthService {
     private final String dummyHash;
 
     public AuthService(OrganizationAccessRepository accessRepository,
+                       ClientSessionAccessPort clientAccess,
                        OrganizationAdminRepository organizationRepository,
                        IdentityRepository identityRepository,
                        AuthRepository authRepository,
@@ -60,6 +62,7 @@ public class AuthService {
                        AuthProperties properties,
                        Clock clock) {
         this.accessRepository = accessRepository;
+        this.clientAccess = clientAccess;
         this.organizationRepository = organizationRepository;
         this.identityRepository = identityRepository;
         this.authRepository = authRepository;
@@ -176,14 +179,24 @@ public class AuthService {
     public SessionResult refresh(TenantPrincipal principal, RequestMetadata metadata) {
         Instant now = clock.instant();
         authRepository.revokeSession(principal.sessionId(), now);
-        var access = accessRepository.findByUserAndOrganization(principal.userId(), principal.organizationId())
+        var internal = accessRepository.findByUserAndOrganization(principal.userId(), principal.organizationId())
                 .filter(OrganizationAccess::isUsableInternalAccess)
-                .filter(value -> value.user().isActiveAt(now))
-                .orElseThrow(this::unauthorized);
-        if (MfaAssurance.requiredFor(access.permissions()) && !principal.mfaVerified()) {
-            throw unauthorized();
+                .filter(value -> value.user().isActiveAt(now));
+        SessionResult result;
+        if (internal.isPresent()) {
+            var access = internal.get();
+            if (MfaAssurance.requiredFor(access.permissions()) && !principal.mfaVerified()) throw unauthorized();
+            result = newSession(access, metadata, now, principal.mfaVerified());
+        } else {
+            var access = clientAccess.findByUserAndOrganization(principal.userId(), principal.organizationId())
+                    .filter(value -> value.user().isActiveAt(now)).orElseThrow(this::unauthorized);
+            String raw = tokens.issue();
+            UUID sessionId = UUID.randomUUID();
+            authRepository.insertSession(new AuthSession(sessionId, access.organizationId(), access.user().id(),
+                    tokens.hash(raw), access.user().credentialVersion(), now, now,
+                    now.plus(properties.sessionDuration()), null, null), metadata.ipHash(), metadata.userAgentHash());
+            result = new SessionResult(sessionId, raw);
         }
-        var result = newSession(access, metadata, now, principal.mfaVerified());
         audit.append(principal.organizationId(), principal.userId(), "SESSION_ROTATED", "AUTH_SESSION",
                 result.sessionId(), Map.of(), Map.of(), "API", metadata.ipHash());
         return result;

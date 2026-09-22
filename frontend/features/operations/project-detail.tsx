@@ -21,6 +21,7 @@ import { useCurrentUser } from "@/features/settings/internal-shell";
 import { ApiClientError } from "@/lib/api-client";
 import { Failure, PendingRows, errorMessage } from "./operations-pages";
 import { operationsApi } from "./operations-api";
+import { InvitationPanel } from "./invitation-panel";
 import type {
   OnboardingStep,
   OnboardingView,
@@ -298,6 +299,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
               ))}
             </div>
           </section>
+          <InvitationPanel onboardingId={onboarding.onboarding.id} clientId={project.clientId} onboardingStatus={onboarding.onboarding.status} />
         </>
       )}
     </>

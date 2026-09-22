@@ -26,6 +26,22 @@ export type ClientContact = {
   version: number;
 };
 
+export type ClientInvitation = {
+  id: string;
+  onboardingId: string;
+  contactId: string;
+  email: string;
+  role: "ADMIN" | "MEMBER";
+  status: "PENDING" | "ACCEPTED" | "REVOKED";
+  deliveryStatus: "PENDING" | "SENT" | "FAILED";
+  effectiveStatus: "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
+  expiresAt: string;
+  sentAt?: string;
+  acceptedAt?: string;
+  resendCount: number;
+  version: number;
+};
+
 export type ServiceDefinition = {
   id: string;
   code: string;
