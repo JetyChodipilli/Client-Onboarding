@@ -45,11 +45,14 @@ public class OnboardingService {
     private final AuditService audit;
     private final ObjectMapper json;
     private final Clock clock;
+    private final List<com.brainserve.clientonboarding.workflow.application.StepConfigurationValidator> validators;
 
     public OnboardingService(OnboardingRepository onboardings, WorkflowTemplateRepository workflows,
-                             ProjectWorkflowPort projects, AuditService audit, ObjectMapper json, Clock clock) {
+                             ProjectWorkflowPort projects, AuditService audit, ObjectMapper json, Clock clock,
+                             List<com.brainserve.clientonboarding.workflow.application.StepConfigurationValidator> validators) {
         this.onboardings = onboardings; this.workflows = workflows; this.projects = projects;
         this.audit = audit; this.json = json; this.clock = clock;
+        this.validators = validators;
     }
 
     @PreAuthorize("hasAuthority('ONBOARDING_START')")
@@ -85,6 +88,7 @@ public class OnboardingService {
                     "The workflow template does not apply to this project's service.", HttpStatus.CONFLICT);
         }
         List<TemplateStep> sourceSteps = workflows.findSteps(principal.organizationId(), version.id());
+        sourceSteps.forEach(step -> validators.forEach(validator -> validator.validate(principal.organizationId(), step)));
         try { WorkflowGraphPolicy.validate(sourceSteps); }
         catch (IllegalArgumentException exception) {
             throw new DomainException("INVALID_WORKFLOW_GRAPH", exception.getMessage(), HttpStatus.CONFLICT);
@@ -126,6 +130,8 @@ public class OnboardingService {
                                          RequestMetadata metadata) {
         OnboardingStepInstance step = onboardings.findStep(principal.organizationId(), stepId)
                 .orElseThrow(this::notFound);
+        if (step.stepType() == TemplateStep.StepType.FORM) throw new DomainException("DEDICATED_STEP_FLOW_REQUIRED",
+                "Use the form response and review actions for this step.", HttpStatus.CONFLICT);
         boolean reviewAction = requiresReviewPermission(step, command.targetStatus());
         if (reviewAction && !principal.hasPermission("ONBOARDING_REVIEW")) {
             throw new DomainException("PERMISSION_DENIED",

@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DomainException.class)
     ResponseEntity<ApiFailure> handleDomainException(DomainException exception) {
-        return failure(exception.status(), exception.code(), exception.getMessage(), List.of());
+        return failure(exception.status(), exception.code(), exception.getMessage(), exception.fieldErrors());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

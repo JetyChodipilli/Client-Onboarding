@@ -314,6 +314,17 @@ public class ClientPortalService {
                         : "Email " + helpEmail + " for help.", steps);
     }
 
+    /** Feature handlers reuse portal grants and assignment rules without querying portal tables. */
+    @PreAuthorize("hasAuthority('CLIENT_PORTAL_READ')")
+    public void requireStepAccess(TenantPrincipal principal, UUID projectId, UUID stepId) {
+        var project = portal.findPortalProject(principal.organizationId(), principal.membershipId(), projectId)
+                .orElseThrow(this::notFound);
+        onboardings.findStep(principal.organizationId(), stepId)
+                .filter(step -> step.onboardingId().equals(project.onboardingId()) && step.applicable() && step.clientVisible())
+                .filter(step -> principal.hasPermission("CLIENT_PORTAL_ADMIN") || step.assignedRole() == null
+                        || "CLIENT_MEMBER".equalsIgnoreCase(step.assignedRole())).orElseThrow(this::notFound);
+    }
+
     @PreAuthorize("hasAuthority('CLIENT_PORTAL_STEP_UPDATE')")
     @Transactional
     public PortalDashboard transition(TenantPrincipal principal, UUID projectId, UUID stepId,
@@ -399,7 +410,9 @@ public class ClientPortalService {
             waitingFor = "OUR_TEAM";
             reason = "Updates are paused or closed. Contact your project team for next steps.";
         }
-        boolean actionable = active && ClientStepPolicy.informational(step.stepType())
+        boolean actionable = active && (ClientStepPolicy.informational(step.stepType())
+                || step.stepType() == com.brainserve.clientonboarding.workflow.domain.model.TemplateStep.StepType.FORM
+                    && step.configuration().containsKey("formVersionId"))
                 && ClientStepPolicy.actionable(step.status());
         return new PortalStep(step.id(), step.name(), step.description(), step.stepType().name(),
                 step.status().name(), step.required(), step.blocking(), step.dueAt(), waitingFor, reason,

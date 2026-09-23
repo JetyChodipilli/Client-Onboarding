@@ -38,7 +38,7 @@ import org.springframework.test.web.servlet.MvcResult;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import(TestSecurityNotificationConfiguration.class)
-class Phase1SecurityIntegrationTest {
+class Phase1SecurityIntegrationTest extends com.brainserve.clientonboarding.infrastructure.PostgresTestDatabase {
     private static final String PASSWORD = "CorrectHorse7Battery";
 
     @Autowired MockMvc mockMvc;
