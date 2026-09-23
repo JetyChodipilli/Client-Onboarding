@@ -40,6 +40,12 @@ public class JdbcOrganizationAdminRepository implements OrganizationAdminReposit
     }
 
     @Override
+    public boolean lockOrganization(UUID organizationId) {
+        return jdbc.sql("SELECT id FROM organizations WHERE id = :id FOR UPDATE")
+                .param("id", organizationId).query(UUID.class).optional().isPresent();
+    }
+
+    @Override
     public Optional<Organization> findOrganizationByIdAndTenant(UUID id, UUID tenantId) {
         return jdbc.sql("SELECT * FROM organizations WHERE id = :id AND id = :tenantId")
                 .param("id", id).param("tenantId", tenantId).query(this::mapOrganization).optional();

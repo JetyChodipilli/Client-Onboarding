@@ -17,6 +17,7 @@ import com.brainserve.clientonboarding.onboarding.domain.model.OnboardingInstanc
 import com.brainserve.clientonboarding.onboarding.domain.model.OnboardingStepInstance;
 import com.brainserve.clientonboarding.onboarding.domain.model.ReadinessPolicy;
 import com.brainserve.clientonboarding.onboarding.domain.repository.OnboardingRepository;
+import com.brainserve.clientonboarding.project.application.ProjectWorkflowPort;
 import com.brainserve.clientonboarding.portal.domain.model.ClientInvitation;
 import com.brainserve.clientonboarding.portal.domain.model.ClientStepPolicy;
 import com.brainserve.clientonboarding.portal.domain.repository.PortalRepository;
@@ -42,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ClientPortalService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientPortalService.class);
     private static final String INVITE_SCOPE = "INVITE_CLIENT";
+    private final ProjectWorkflowPort projects;
     private final PortalRepository portal;
     private final OnboardingRepository onboardings;
     private final IdentityRepository identities;
@@ -56,12 +58,13 @@ public class ClientPortalService {
     private final Clock clock;
     private final String dummyHash;
 
-    public ClientPortalService(PortalRepository portal, OnboardingRepository onboardings,
+    public ClientPortalService(ProjectWorkflowPort projects, PortalRepository portal, OnboardingRepository onboardings,
                                IdentityRepository identities,
                                AuthRepository auth, PasswordEncoder passwords, PasswordPolicy passwordPolicy,
                                SecureTokenService tokens, SecurityNotificationPort notifications,
                                LoginRateLimiter rateLimiter, AuditService audit, AuthProperties properties,
                                Clock clock) {
+        this.projects = projects;
         this.portal = portal; this.onboardings = onboardings;
         this.identities = identities; this.auth = auth; this.passwords = passwords;
         this.passwordPolicy = passwordPolicy; this.tokens = tokens; this.notifications = notifications;
@@ -86,6 +89,7 @@ public class ClientPortalService {
         }
         var target = portal.findInvitationTarget(principal.organizationId(), onboardingId, command.contactId())
                 .orElseThrow(this::notFound);
+        projects.lockOnboardingProject(principal.organizationId(), target.projectId());
         requireInvitable(target);
         Instant now = clock.instant();
         String raw = tokens.issue();
@@ -125,6 +129,7 @@ public class ClientPortalService {
         if (current.status() != ClientInvitation.Status.PENDING) throw invitationUnavailable();
         var target = portal.findInvitationTarget(principal.organizationId(), current.onboardingId(), current.contactId())
                 .orElseThrow(this::notFound);
+        projects.lockOnboardingProject(principal.organizationId(), target.projectId());
         requireInvitable(target);
         String raw = tokens.issue();
         Instant now = clock.instant();
@@ -167,6 +172,7 @@ public class ClientPortalService {
         Instant now = clock.instant();
         ClientInvitation invitation = token(rawToken);
         if (!invitation.usableAt(now)) throw invalidToken();
+        projects.lockOnboardingProject(invitation.organizationId(), invitation.projectId());
         var target = portal.findInvitationTarget(invitation.organizationId(), invitation.onboardingId(),
                 invitation.contactId()).orElseThrow(this::invalidToken);
         if (!invitable(target)) throw invalidToken();
@@ -285,20 +291,24 @@ public class ClientPortalService {
                 .orElseThrow(this::notFound);
         List<OnboardingStepInstance> all = onboardings.findSteps(principal.organizationId(), onboarding.id());
         List<OnboardingStepInstance> visible = clientSteps(principal, all);
-        boolean active = onboarding.status() == OnboardingInstance.Status.IN_PROGRESS;
+        boolean projectActive = "ONBOARDING".equals(project.projectStatus());
+        boolean active = projectActive && onboarding.status() == OnboardingInstance.Status.IN_PROGRESS;
         List<PortalStep> steps = visible.stream().map(step -> portalStep(step, visible, active)).toList();
         PortalStep next = steps.stream().filter(step -> active && "YOUR_ACTION".equals(step.waitingFor()))
                 .sorted(Comparator.comparing(PortalStep::actionable).reversed()).findFirst()
                 .orElse(null);
         String waiting = next == null && steps.stream().anyMatch(step -> "OUR_TEAM".equals(step.waitingFor()))
                 ? "OUR_TEAM" : next == null ? "NONE" : "YOU";
-        String status = !active ? onboarding.status().name() : next != null ? "ACTION_REQUIRED" : "OUR_TEAM".equals(waiting) ? "WAITING" :
+        String status = !projectActive ? project.projectStatus() : !active ? onboarding.status().name() : next != null ? "ACTION_REQUIRED" : "OUR_TEAM".equals(waiting) ? "WAITING" :
                 onboarding.ready() ? "READY" : onboarding.status().name();
+        String inactiveReason = !projectActive ? "This project is " + project.projectStatus().toLowerCase(Locale.ROOT).replace('_', ' ')
+                + ". Contact your project team for next steps." : !active ? "This onboarding is "
+                + onboarding.status().name().toLowerCase(Locale.ROOT).replace('_', ' ') + ". Contact your project team for next steps." : null;
         String helpEmail = portal.findHelpEmail(principal.organizationId(), projectId).orElse(null);
         return new PortalDashboard(project.projectId(), project.projectName(), project.projectStatus(),
                 project.clientName(), onboarding.id(), onboarding.status().name(), status,
                 ReadinessPolicy.progress(visible), next, waiting,
-                next == null ? ("OUR_TEAM".equals(waiting) ? "Your team is reviewing the current work."
+                !active ? inactiveReason : next == null ? ("OUR_TEAM".equals(waiting) ? "Your team is reviewing the current work."
                         : null) : next.blockingReason(), helpEmail,
                 helpEmail == null ? "Contact your project team through your usual support channel."
                         : "Email " + helpEmail + " for help.", steps);
@@ -310,6 +320,7 @@ public class ClientPortalService {
                                       ClientStepCommand command, RequestMetadata metadata) {
         PortalRepository.PortalProject project = portal.findPortalProject(principal.organizationId(),
                 principal.membershipId(), projectId).orElseThrow(this::notFound);
+        projects.lockOnboardingProject(principal.organizationId(), projectId);
         OnboardingInstance onboarding = onboardings.findById(principal.organizationId(), project.onboardingId())
                 .orElseThrow(this::notFound);
         if (onboarding.status() != OnboardingInstance.Status.IN_PROGRESS) {
@@ -367,18 +378,27 @@ public class ClientPortalService {
         else if (List.of(OnboardingStepInstance.Status.SUBMITTED, OnboardingStepInstance.Status.UNDER_REVIEW)
                 .contains(step.status())) waitingFor = "OUR_TEAM";
         else if (step.status() == OnboardingStepInstance.Status.LOCKED) {
-            Optional<OnboardingStepInstance> openDependency = step.dependencyStepInstanceIds().stream()
+            List<OnboardingStepInstance> dependencies = step.dependencyStepInstanceIds().stream()
                     .map(id -> all.stream().filter(item -> item.id().equals(id)).findFirst().orElse(null))
-                    .filter(java.util.Objects::nonNull)
-                    .filter(item -> item.status() != OnboardingStepInstance.Status.COMPLETED).findFirst();
-            if (openDependency.isPresent() && openDependency.get().clientVisible()) {
+                    .filter(java.util.Objects::nonNull).toList();
+            Optional<OnboardingStepInstance> clientDependency = dependencies.stream()
+                    .filter(item -> ClientStepPolicy.actionable(item.status())).findFirst();
+            if (clientDependency.isPresent()) {
                 waitingFor = "YOUR_ACTION";
-                reason = "Complete “" + openDependency.get().name() + "” first.";
+                reason = "Complete “" + clientDependency.get().name() + "” first.";
             } else {
                 waitingFor = "OUR_TEAM";
-                reason = "Your team is completing a prerequisite.";
+                boolean reviewPending = dependencies.stream().anyMatch(item ->
+                        item.status() == OnboardingStepInstance.Status.SUBMITTED
+                                || item.status() == OnboardingStepInstance.Status.UNDER_REVIEW);
+                reason = reviewPending ? "Your team is reviewing a prerequisite."
+                        : "Your team is completing a prerequisite.";
             }
         } else waitingFor = "NONE";
+        if (!active && !"NONE".equals(waitingFor)) {
+            waitingFor = "OUR_TEAM";
+            reason = "Updates are paused or closed. Contact your project team for next steps.";
+        }
         boolean actionable = active && ClientStepPolicy.informational(step.stepType())
                 && ClientStepPolicy.actionable(step.status());
         return new PortalStep(step.id(), step.name(), step.description(), step.stepType().name(),

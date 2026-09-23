@@ -98,6 +98,25 @@ test.describe("Phase 4 client invitation and portal", () => {
     await expect(page.getByRole("link", { name: "Projects", exact: true })).toBeVisible();
   });
 
+  test("keeps the client session screen on logout failure and allows retry", async ({ page }) => {
+    await mock(page);
+    let attempts = 0;
+    await page.route("**/api/v1/auth/logout", (route) => {
+      if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+      attempts += 1;
+      return attempts === 1
+        ? respond(route, failure("DEPENDENCY_UNAVAILABLE", "Please try again."), 503)
+        : respond(route, success({ message: "Signed out" }));
+    });
+    await page.goto("/portal");
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await expect(page.getByRole("alert")).toContainText("Your session may still be active");
+    await expect(page).toHaveURL(/\/portal$/);
+    await page.getByRole("button", { name: "Sign out" }).click();
+    await expect(page).toHaveURL(/\/client\/login$/);
+    expect(attempts).toBe(2);
+  });
+
   test("keeps a clear loading state and shows an API failure", async ({ page }) => {
     await mock(page);
     let release!: () => void;

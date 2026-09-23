@@ -70,3 +70,19 @@ use controlled API responses across four viewports. Browser reports and screensh
 Apply V6 with Flyway before serving the Phase 4 application. V1–V5 are unchanged. Do not roll back by dropping
 identity or invitation data; restore the tested backup or forward-fix if the release must be reverted. SMTP must
 be configured for the environment. A failed delivery remains visible to an authorized operator for resend.
+
+## Cross-phase debug review
+
+Invitation creation, resend and acceptance require a project in `ONBOARDING`. Client step updates
+require both that project state and onboarding `IN_PROGRESS`. Internal transitions additionally reject
+paused, expired, approved and terminal onboarding states. The project module exposes a row-locking
+application port, held for the mutation transaction, so project hold/cancel and step updates serialize.
+The separate lifecycle values are retained; holding a project does not silently rewrite onboarding state.
+
+Held/cancelled projects remain readable until archive, with no client action, a status explanation and
+team contact. A visible prerequisite awaiting review belongs to `OUR_TEAM`; an actionable visible
+prerequisite belongs to `YOUR_ACTION`. Hidden prerequisite names remain private.
+
+Both shells show logout failure and retain a retry action until the server confirms logout or session
+absence. Session rotation atomically consumes the old session and checks expiry and credential version.
+See [the audit report](../phase-reports/phases-0-4-debug-audit.md) for regression evidence.

@@ -181,7 +181,8 @@ public class AuthService {
     @Transactional
     public SessionResult refresh(TenantPrincipal principal, RequestMetadata metadata) {
         Instant now = clock.instant();
-        authRepository.revokeSession(principal.sessionId(), now);
+        if (!authRepository.consumeSession(principal.organizationId(), principal.userId(), principal.sessionId(),
+                now, now.minus(properties.sessionIdleTimeout()))) throw unauthorized();
         var internal = accessRepository.findByUserAndOrganization(principal.userId(), principal.organizationId())
                 .filter(OrganizationAccess::isUsableInternalAccess)
                 .filter(value -> value.user().isActiveAt(now));

@@ -139,6 +139,13 @@ public class OnboardingService {
         }
         OnboardingInstance onboarding = onboardings.findById(principal.organizationId(), step.onboardingId())
                 .orElseThrow(this::notFound);
+        projects.lockOnboardingProject(principal.organizationId(), onboarding.projectId());
+        if (java.util.EnumSet.of(OnboardingInstance.Status.PAUSED, OnboardingInstance.Status.EXPIRED,
+                OnboardingInstance.Status.CANCELLED, OnboardingInstance.Status.APPROVED,
+                OnboardingInstance.Status.COMPLETED).contains(onboarding.status())) {
+            throw new DomainException("ONBOARDING_NOT_ACTIVE",
+                    "This onboarding is not accepting updates.", HttpStatus.CONFLICT);
+        }
         Instant now = clock.instant();
         if (!onboardings.updateStepStatus(principal.organizationId(), stepId, step.status(), command.targetStatus(),
                 command.version(), principal.userId(), now)) throw conflict();

@@ -69,6 +69,7 @@ class Phase4IntegrationTest {
     @Autowired ObjectMapper json;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired AuthRepository auth;
+    @Autowired com.brainserve.clientonboarding.auth.application.AuthService authService;
     @Autowired SecureTokenService tokens;
     @Autowired Clock clock;
     @Autowired DataSource dataSource;
@@ -91,9 +92,9 @@ class Phase4IntegrationTest {
         organizationA = organization("portal-a", "Portal Organization A");
         organizationB = organization("portal-b", "Portal Organization B");
         managerA = internalSession(organizationA, "manager-portal-a@example.test",
-                Set.of("ONBOARDING_INVITE", "WORKFLOW_READ"));
+                Set.of("ONBOARDING_INVITE", "WORKFLOW_READ", "ONBOARDING_START", "PROJECT_UPDATE", "PROJECT_READ", "CLIENT_READ", "SERVICE_MANAGE", "AUDIT_READ"));
         managerB = internalSession(organizationB, "manager-portal-b@example.test",
-                Set.of("ONBOARDING_INVITE", "WORKFLOW_READ"));
+                Set.of("ONBOARDING_INVITE", "WORKFLOW_READ", "ONBOARDING_START", "PROJECT_UPDATE", "PROJECT_READ", "CLIENT_READ", "SERVICE_MANAGE", "AUDIT_READ"));
         seedOnboarding();
     }
 
@@ -332,6 +333,185 @@ class Phase4IntegrationTest {
         mockMvc.perform(post("/api/v1/client-invitations/{id}/resend", invitation).cookie(managerA).with(csrf())
                         .contentType("application/json").content("{\"version\":0}"))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void projectHoldResumeAndCancellationControlBothStepEntryPoints() throws Exception {
+        Cookie client = activateMember();
+        UUID welcome = step("WELCOME");
+        projectAction("hold", 1).andExpect(status().isOk());
+        transition(client, welcome, "IN_PROGRESS", 0).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("PROJECT_NOT_ONBOARDING"));
+        internalTransition(welcome).andExpect(status().isConflict());
+        mockMvc.perform(get("/api/v1/client-portal/projects/{id}", projectId).cookie(client))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.currentStatus").value("ON_HOLD"))
+                .andExpect(jsonPath("$.data.nextAction").isEmpty())
+                .andExpect(jsonPath("$.data.steps[0].actionable").value(false))
+                .andExpect(jsonPath("$.data.steps[0].waitingFor").value("OUR_TEAM"));
+        projectAction("resume", 2).andExpect(status().isOk());
+        for (String state : List.of("PAUSED", "EXPIRED", "CANCELLED", "APPROVED", "COMPLETED")) {
+            jdbc.sql("UPDATE onboarding_instances SET status=:status WHERE id=:id")
+                    .param("status", state).param("id", onboardingId).update();
+            internalTransition(welcome).andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error.code").value("ONBOARDING_NOT_ACTIVE"));
+        }
+        jdbc.sql("UPDATE onboarding_instances SET status='IN_PROGRESS' WHERE id=:id").param("id", onboardingId).update();
+        transition(client, welcome, "IN_PROGRESS", 0).andExpect(status().isOk());
+        projectAction("cancel", 3).andExpect(status().isOk());
+        transition(client, welcome, "COMPLETED", 1).andExpect(status().isConflict());
+        mockMvc.perform(get("/api/v1/client-portal/projects/{id}", projectId).cookie(client))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.currentStatus").value("CANCELLED"));
+        projectAction("archive", 4).andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/client-portal/projects/{id}", projectId).cookie(client))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void concurrentProjectHoldCommitsBeforeClientStepAuthorization() throws Exception {
+        Cookie client = activateMember();
+        UUID welcome = step("WELCOME");
+        var executor = java.util.concurrent.Executors.newSingleThreadExecutor();
+        try (var connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            try (var update = connection.prepareStatement("UPDATE projects SET status='ON_HOLD', previous_status='ONBOARDING' WHERE id=?")) {
+                update.setObject(1, projectId);
+                update.executeUpdate();
+            }
+            var attempt = executor.submit(() -> transition(client, welcome, "IN_PROGRESS", 0));
+            org.junit.jupiter.api.Assertions.assertThrows(java.util.concurrent.TimeoutException.class,
+                    () -> attempt.get(250, java.util.concurrent.TimeUnit.MILLISECONDS));
+            connection.commit();
+            attempt.get(10, java.util.concurrent.TimeUnit.SECONDS).andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error.code").value("PROJECT_NOT_ONBOARDING"));
+            org.junit.jupiter.api.Assertions.assertEquals("AVAILABLE", jdbc.sql(
+                    "SELECT status FROM onboarding_step_instances WHERE id=:id").param("id", welcome).query(String.class).single());
+        } finally { executor.shutdownNow(); }
+    }
+
+    @Test
+    void heldProjectRejectsNewInvitationsResendAndAcceptance() throws Exception {
+        UUID invitation = directInvitation("held-invitation", Instant.now().plusSeconds(3600));
+        projectAction("hold", 1).andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/onboardings/{id}/client-invitations", onboardingId).cookie(managerA)
+                        .with(csrf()).contentType("application/json")
+                        .content(json.writeValueAsString(java.util.Map.of("contactId", contactId, "role", "MEMBER"))))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/v1/client-invitations/{id}/resend", invitation).cookie(managerA)
+                        .with(csrf()).contentType("application/json").content("{\"version\":0}"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/v1/client-invitations/accept").with(csrf()).contentType("application/json")
+                        .content(json.writeValueAsString(java.util.Map.of("token", "held-invitation", "password", "ClientPortal7Password"))))
+                .andExpect(status().isConflict());
+        org.junit.jupiter.api.Assertions.assertEquals("PENDING", jdbc.sql(
+                "SELECT status FROM client_invitations WHERE id=:id").param("id", invitation).query(String.class).single());
+    }
+
+    @Test
+    void lockedStepsWaitingOnReviewNeverAssignCompletedClientWorkBackToClient() throws Exception {
+        Cookie client = activateMember();
+        UUID welcome = step("WELCOME"), dependent = step("ADMIN_GUIDE");
+        jdbc.sql("UPDATE onboarding_step_instances SET assigned_role=NULL,status='LOCKED',dependency_mode='ALL' WHERE id=:id")
+                .param("id", dependent).update();
+        jdbc.sql("INSERT INTO onboarding_step_instance_dependencies (organization_id,onboarding_id,step_instance_id,depends_on_step_instance_id) VALUES (:org,:onboarding,:step,:dependency)")
+                .param("org", organizationA).param("onboarding", onboardingId).param("step", dependent).param("dependency", welcome).update();
+        for (String mode : List.of("ALL", "ANY")) {
+            jdbc.sql("UPDATE onboarding_step_instances SET dependency_mode=:mode WHERE id=:id").param("mode", mode).param("id", dependent).update();
+            for (String state : List.of("SUBMITTED", "UNDER_REVIEW")) {
+                jdbc.sql("UPDATE onboarding_step_instances SET requires_review=TRUE,status=:status WHERE id=:id")
+                        .param("status", state).param("id", welcome).update();
+                mockMvc.perform(get("/api/v1/client-portal/projects/{id}", projectId).cookie(client))
+                        .andExpect(status().isOk()).andExpect(jsonPath("$.data.nextAction").isEmpty())
+                        .andExpect(jsonPath("$.data.steps[1].waitingFor").value("OUR_TEAM"))
+                        .andExpect(jsonPath("$.data.steps[1].blockingReason").value("Your team is reviewing a prerequisite."));
+            }
+        }
+        jdbc.sql("UPDATE onboarding_step_instances SET status='NEEDS_REVISION' WHERE id=:id").param("id", welcome).update();
+        mockMvc.perform(get("/api/v1/client-portal/projects/{id}", projectId).cookie(client))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.nextAction.id").value(welcome.toString()))
+                .andExpect(jsonPath("$.data.steps[1].waitingFor").value("YOUR_ACTION"));
+        jdbc.sql("UPDATE onboarding_step_instances SET client_visible=FALSE WHERE id=:id").param("id", welcome).update();
+        mockMvc.perform(get("/api/v1/client-portal/projects/{id}", projectId).cookie(client))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.steps", hasSize(1)))
+                .andExpect(jsonPath("$.data.steps[0].waitingFor").value("OUR_TEAM"))
+                .andExpect(jsonPath("$.data.steps[0].blockingReason").value("Your team is completing a prerequisite."));
+    }
+
+    @Test
+    void malformedUrlInputsAreClientErrorsAndLargePagesDoNotOverflow() throws Exception {
+        mockMvc.perform(get("/api/v1/onboardings/not-a-uuid").cookie(managerA))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("VALIDATION_FAILED"));
+        mockMvc.perform(get("/api/v1/projects?size=not-a-number").cookie(managerA))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/v1/projects/{id}/hold", projectId).cookie(managerA).with(csrf()))
+                .andExpect(status().isBadRequest());
+        for (String endpoint : List.of("clients", "projects", "services", "workflow-templates", "audit-logs")) {
+            mockMvc.perform(get("/api/v1/" + endpoint + "?page=2147483647&size=100").cookie(managerA))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(0)));
+        }
+    }
+
+    private org.springframework.test.web.servlet.ResultActions projectAction(String action, long version) throws Exception {
+        return mockMvc.perform(post("/api/v1/projects/{id}/" + action, projectId).param("version", Long.toString(version))
+                .cookie(managerA).with(csrf()));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions internalTransition(UUID step) throws Exception {
+        return mockMvc.perform(post("/api/v1/onboarding-steps/{id}/transition", step).cookie(managerA).with(csrf())
+                .contentType("application/json").content("{\"targetStatus\":\"IN_PROGRESS\",\"version\":0}"));
+    }
+
+    @Test
+    void clientSessionRotationRejectsPreviouslyAuthenticatedReplayAndRevocation() throws Exception {
+        Cookie client = activateMember();
+        var original = auth.findSessionByTokenHash(tokens.hash(client.getValue())).orElseThrow();
+        UUID membership = jdbc.sql("SELECT id FROM client_users WHERE organization_id=:org AND user_id=:user")
+                .param("org", organizationA).param("user", original.userId()).query(UUID.class).single();
+        var principal = new com.brainserve.clientonboarding.common.security.TenantPrincipal(original.userId(),
+                organizationA, "Portal Organization A", "portal-a", membership, "client@portal.test", "Client",
+                "CLIENT_MEMBER", Set.of("CLIENT_PORTAL_READ"), original.id(), false);
+        var metadata = new com.brainserve.clientonboarding.common.observability.RequestMetadata("ip", "agent");
+        var rotated = authService.refresh(principal, metadata);
+        mockMvc.perform(get("/api/v1/client-portal/projects").cookie(client)).andExpect(status().isUnauthorized());
+        // Simulate a second request authenticated before the first rotation committed.
+        var replay = org.junit.jupiter.api.Assertions.assertThrows(
+                com.brainserve.clientonboarding.common.error.DomainException.class,
+                () -> authService.refresh(principal, metadata));
+        org.junit.jupiter.api.Assertions.assertEquals(org.springframework.http.HttpStatus.UNAUTHORIZED, replay.status());
+        var next = new Cookie("BOS_SESSION", rotated.rawToken());
+        mockMvc.perform(get("/api/v1/client-portal/projects").cookie(next)).andExpect(status().isOk());
+        var nextPrincipal = new com.brainserve.clientonboarding.common.security.TenantPrincipal(original.userId(),
+                organizationA, "Portal Organization A", "portal-a", membership, "client@portal.test", "Client",
+                "CLIENT_MEMBER", Set.of("CLIENT_PORTAL_READ"), rotated.sessionId(), false);
+        auth.revokeAllSessions(original.userId(), clock.instant());
+        org.junit.jupiter.api.Assertions.assertThrows(com.brainserve.clientonboarding.common.error.DomainException.class,
+                () -> authService.refresh(nextPrincipal, metadata));
+    }
+
+    @Test
+    void concurrentRoleEditsCannotRemoveEveryManager() throws Exception {
+        Cookie first = internalSession(organizationA, "first-admin@portal.test", Set.of("USER_MANAGE", "ROLE_MANAGE"));
+        Cookie second = internalSession(organizationA, "second-admin@portal.test", Set.of("USER_MANAGE", "ROLE_MANAGE"));
+        UUID firstRole = jdbc.sql("SELECT ou.role_id FROM organization_users ou JOIN users u ON u.id=ou.user_id WHERE u.email='first-admin@portal.test'").query(UUID.class).single();
+        UUID secondRole = jdbc.sql("SELECT ou.role_id FROM organization_users ou JOIN users u ON u.id=ou.user_id WHERE u.email='second-admin@portal.test'").query(UUID.class).single();
+        var executor = java.util.concurrent.Executors.newFixedThreadPool(2);
+        var start = new java.util.concurrent.CountDownLatch(1);
+        try {
+            var one = executor.submit(() -> { start.await(); return removeManagerPermissions(first, firstRole, "First"); });
+            var two = executor.submit(() -> { start.await(); return removeManagerPermissions(second, secondRole, "Second"); });
+            start.countDown();
+            var responses = List.of(one.get(10, java.util.concurrent.TimeUnit.SECONDS), two.get(10, java.util.concurrent.TimeUnit.SECONDS));
+            org.junit.jupiter.api.Assertions.assertEquals(List.of(200, 409), responses.stream()
+                    .map(result -> result.getResponse().getStatus()).sorted().toList());
+            var rejected = responses.stream().filter(result -> result.getResponse().getStatus() == 409).findFirst().orElseThrow();
+            org.junit.jupiter.api.Assertions.assertEquals("LAST_MANAGER_REQUIRED", tree(rejected).at("/error/code").asText());
+        } finally { executor.shutdownNow(); }
+    }
+
+    private MvcResult removeManagerPermissions(Cookie session, UUID role, String name) throws Exception {
+        return mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/roles/{id}", role)
+                .cookie(session).with(csrf()).contentType("application/json")
+                .content(json.writeValueAsString(java.util.Map.of("name", name, "description", "", "permissions", List.of(), "version", 0))))
+                .andReturn();
     }
 
     private UUID step(String key) {

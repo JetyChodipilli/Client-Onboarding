@@ -6,8 +6,11 @@ Phase 4 — Client Invitation & Portal. Implementation and required verification
 
 Repository: [Client-Onboarding](https://github.com/JetyChodipilli/Client-Onboarding/tree/codex/phase-4-client-portal).
 The work is isolated on `codex/phase-4-client-portal`, based on verified Phase 3 commit
-`8d2f8e0a5de03a5aba80a92f28220d9fee09b383`. Existing later-phase work on `main` was preserved.
-No merge, deployment, or source ZIP is part of this handoff.
+`8d2f8e0a5de03a5aba80a92f28220d9fee09b383`. The subsequent fetch confirmed `main` contained
+Phases 0–3 plus README revisions, not later-phase implementation. The earlier statement about later-phase
+work on `main` was incorrect. The authorized cross-phase debug review merges this branch with those README
+revisions and fixes issues found after the original successful CI run.
+See [the cross-phase audit](phases-0-4-debug-audit.md) for current verification and merge evidence.
 
 IMPLEMENTED:
 

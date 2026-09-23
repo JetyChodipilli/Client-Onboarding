@@ -35,7 +35,7 @@ public class JdbcAuditRepository implements AuditRepository {
     }
 
     @Override
-    public List<AuditEntry> findPage(UUID organizationId, int limit, int offset) {
+    public List<AuditEntry> findPage(UUID organizationId, int limit, long offset) {
         return jdbc.sql("""
                 SELECT * FROM audit_logs WHERE organization_id = :organizationId
                 ORDER BY created_at DESC, id DESC LIMIT :limit OFFSET :offset

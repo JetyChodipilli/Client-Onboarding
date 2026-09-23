@@ -36,7 +36,7 @@ public class JdbcPortalRepository implements PortalRepository, ClientSessionAcce
                 JOIN client_contacts cc ON cc.organization_id = c.organization_id AND cc.client_id = c.id
                 WHERE oi.organization_id = :organizationId AND oi.id = :onboardingId
                   AND cc.id = :contactId AND cc.archived_at IS NULL AND c.archived_at IS NULL
-                  AND p.status NOT IN ('ARCHIVED', 'CANCELLED', 'COMPLETED')
+                  AND p.status = 'ONBOARDING'
                 """).param("organizationId", organizationId).param("onboardingId", onboardingId)
                 .param("contactId", contactId).query((rs, rowNum) -> new InvitationTarget(
                         rs.getObject("organization_id", UUID.class), rs.getString("organization_name"),

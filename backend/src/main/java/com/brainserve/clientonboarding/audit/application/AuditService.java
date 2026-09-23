@@ -23,6 +23,14 @@ public class AuditService {
         this.clock = clock;
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('AUDIT_READ')")
+    public com.brainserve.clientonboarding.common.domain.model.PageSlice<AuditEntry> page(
+            UUID organizationId, int page, int size) {
+        return new com.brainserve.clientonboarding.common.domain.model.PageSlice<>(
+                repository.findPage(organizationId, size, (long) page * size), page, size,
+                repository.count(organizationId));
+    }
+
     public void append(UUID organizationId, UUID actorUserId, String action, String entityType,
                        UUID entityId, Map<String, ?> before, Map<String, ?> after,
                        String source, String ipHash) {

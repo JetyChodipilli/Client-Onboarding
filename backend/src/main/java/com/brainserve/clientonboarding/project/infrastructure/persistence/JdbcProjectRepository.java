@@ -36,7 +36,7 @@ public class JdbcProjectRepository implements ProjectRepository {
         if (clientId != null) where += " AND p.client_id = :clientId";
         var items = jdbc.sql(SELECT + where + " ORDER BY p.created_at DESC, p.id DESC LIMIT :limit OFFSET :offset")
                 .param("organizationId", organizationId).param("search", "%" + search.toLowerCase() + "%")
-                .param("limit", size).param("offset", page * size);
+                .param("limit", size).param("offset", (long) page * size);
         var count = jdbc.sql("SELECT COUNT(*) FROM projects p" + where)
                 .param("organizationId", organizationId).param("search", "%" + search.toLowerCase() + "%");
         if (status != null) { items = items.param("status", status); count = count.param("status", status); }
@@ -50,6 +50,13 @@ public class JdbcProjectRepository implements ProjectRepository {
         return jdbc.sql(SELECT + " WHERE p.organization_id = :organizationId AND p.id = :id")
                 .param("organizationId", organizationId).param("id", projectId)
                 .query(this::mapProject).optional();
+    }
+
+    @Override
+    public Optional<ProjectRecord.Status> lockStatus(UUID organizationId, UUID projectId) {
+        return jdbc.sql("SELECT status FROM projects WHERE organization_id = :organizationId AND id = :id FOR UPDATE")
+                .param("organizationId", organizationId).param("id", projectId)
+                .query((rs, row) -> ProjectRecord.Status.valueOf(rs.getString("status"))).optional();
     }
 
     @Override

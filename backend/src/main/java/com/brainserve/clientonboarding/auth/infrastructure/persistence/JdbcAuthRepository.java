@@ -50,6 +50,17 @@ public class JdbcAuthRepository implements AuthRepository {
     }
 
     @Override
+    public boolean consumeSession(UUID organizationId, UUID userId, UUID sessionId, Instant now, Instant idleCutoff) {
+        return jdbc.sql("""
+                UPDATE auth_sessions SET revoked_at = :now
+                WHERE id = :id AND organization_id = :org AND user_id = :user
+                  AND revoked_at IS NULL AND expires_at > :now AND last_seen_at > :cutoff
+                  AND credential_version = (SELECT credential_version FROM users WHERE id = :user)
+                """).param("id", sessionId).param("org", organizationId).param("user", userId)
+                .param("now", timestamp(now)).param("cutoff", timestamp(idleCutoff)).update() == 1;
+    }
+
+    @Override
     public void revokeSession(UUID sessionId, Instant now) {
         jdbc.sql("UPDATE auth_sessions SET revoked_at = :now WHERE id = :id AND revoked_at IS NULL")
                 .param("now", timestamp(now)).param("id", sessionId).update();

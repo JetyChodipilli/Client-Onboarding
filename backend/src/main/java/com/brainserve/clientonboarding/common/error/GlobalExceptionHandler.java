@@ -64,6 +64,13 @@ public class GlobalExceptionHandler {
                 "One or more request parameters are invalid.", List.of());
     }
 
+    @ExceptionHandler({org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class})
+    ResponseEntity<ApiFailure> handleInvalidParameter() {
+        return failure(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
+                "One or more request parameters are missing or invalid.", List.of());
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<ApiFailure> handleUnreadableMessage() {
         return failure(HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST",

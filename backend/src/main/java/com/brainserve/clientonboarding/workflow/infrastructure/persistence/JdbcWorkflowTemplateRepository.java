@@ -38,7 +38,7 @@ public class JdbcWorkflowTemplateRepository implements WorkflowTemplateRepositor
                 SELECT * FROM onboarding_templates WHERE organization_id = :organizationId
                     AND LOWER(name) LIKE :search ORDER BY updated_at DESC, id DESC LIMIT :limit OFFSET :offset
                 """).param("organizationId", organizationId).param("search", match).param("limit", size)
-                .param("offset", page * size).query(this::mapTemplate).list();
+                .param("offset", (long) page * size).query(this::mapTemplate).list();
         long total = jdbc.sql("""
                 SELECT COUNT(*) FROM onboarding_templates WHERE organization_id = :organizationId
                     AND LOWER(name) LIKE :search

@@ -95,6 +95,7 @@ public class OrganizationAdminService {
     @Transactional
     public Role updateRole(TenantPrincipal principal, UUID roleId, RoleCommand command,
                            RequestMetadata metadata) {
+        if (!organizations.lockOrganization(principal.organizationId())) throw notFound();
         Role current = organizations.findRole(principal.organizationId(), roleId).orElseThrow(this::notFound);
         Set<String> permissions = validatePermissions(command.permissions());
         preventLastManagerRoleLoss(principal.organizationId(), current, permissions);
@@ -112,6 +113,7 @@ public class OrganizationAdminService {
     @PreAuthorize("hasAuthority('ROLE_MANAGE')")
     @Transactional
     public void archiveRole(TenantPrincipal principal, UUID roleId, long version, RequestMetadata metadata) {
+        if (!organizations.lockOrganization(principal.organizationId())) throw notFound();
         Role current = organizations.findRole(principal.organizationId(), roleId).orElseThrow(this::notFound);
         if (current.permissions().containsAll(MANAGER_PERMISSIONS)
                 && organizations.countActiveManagers(principal.organizationId(), "USER_MANAGE", "ROLE_MANAGE")
@@ -168,6 +170,7 @@ public class OrganizationAdminService {
     @Transactional
     public OrganizationMember updateMember(TenantPrincipal principal, UUID membershipId,
                                              MemberCommand command, RequestMetadata metadata) {
+        if (!organizations.lockOrganization(principal.organizationId())) throw notFound();
         OrganizationMember current = organizations.findMember(principal.organizationId(), membershipId)
                 .orElseThrow(this::notFound);
         Role currentRole = organizations.findRole(principal.organizationId(), current.roleId())

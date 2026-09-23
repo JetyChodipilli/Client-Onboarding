@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.UUID;
 
 public interface OrganizationAdminRepository {
+    boolean lockOrganization(UUID organizationId);
     Optional<Organization> findOrganizationByIdAndTenant(UUID id, UUID tenantId);
     Optional<Organization> findOrganizationBySlug(String slug);
     Organization insertOrganization(Organization organization, UUID actorId);
