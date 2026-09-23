@@ -8,7 +8,7 @@ and gstack investigation/review/shipping.
 
 | Phase | Confirmed defect | Fix and regression coverage |
 |---|---|---|
-| 0 | Malformed UUID/query parameters and missing required query parameters reached the generic 500 handler | Controlled 400 envelope; PostgreSQL-backed API regressions |
+| 0 | Malformed UUID/query parameters and missing required query parameters reached the generic 500 handler | Controlled 400 envelope; unknown routes, wrong methods and media types retain 404/405/415; PostgreSQL-backed API regressions |
 | 1 | Concurrent or already-authenticated revoked sessions could rotate more than once | Atomic session consumption scoped by organization/user, expiry and credential version; replay and revocation regression |
 | 1 | Concurrent removal of manager permissions could leave no manager | Organization row lock before role/member changes; two simultaneous role edits yield one success and one last-manager conflict |
 | 1 | Audit controller accessed persistence directly | Existing audit service now owns the query; new ArchUnit controller/persistence boundary rule |
@@ -31,8 +31,21 @@ and gstack investigation/review/shipping.
 
 Local frontend lint, strict typecheck, 12 unit tests and production build passed. Playwright discovers
 92 scenarios (four viewports; the existing full-stack bootstrap case intentionally runs only once).
-Backend, clean PostgreSQL migrations, browser execution and container startup are being verified in GitHub
-Actions. This report is not a claim that pending checks passed. No applied migration was changed.
+[Run 35849125306](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/35849125306),
+commit `0926f74a53189e9359beb388c9410aee43680cc0`, passed all four CI gates:
+
+- Backend: 55 tests, zero failures/errors/skips, Maven verify and runtime smoke passed.
+- Frontend: lint, typecheck, 12 unit tests and production build passed.
+- Browser: 89 passed, three intentional viewport duplicates of the bootstrap scenario skipped.
+- Containers: both production images built, clean Compose startup/migrations passed, readiness and
+  client sign-in probes passed, and no unexpected ERROR entries were found in container logs.
+
+The first audit run exposed two test assertions expecting a null field that the JSON configuration omits.
+The next exposed the logout locator matching Next.js's route announcer. Both assertions were corrected;
+no product guard was relaxed. Final HTTP 404/405/415 envelope regressions and documentation refinements
+are included in the final PR revision, which must pass the same gates before merge.
+See [PR 26](https://github.com/JetyChodipilli/Client-Onboarding/pull/26) for the final revision checks.
+No applied migration was changed.
 
 Tenant coordination uses PostgreSQL `FOR NO KEY UPDATE`: manager/idempotency commands still
 serialize, while audit inserts can obtain foreign-key key-share locks. A regression holds that tenant

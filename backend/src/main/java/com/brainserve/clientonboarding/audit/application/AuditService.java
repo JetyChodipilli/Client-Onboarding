@@ -1,5 +1,8 @@
 package com.brainserve.clientonboarding.audit.application;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+import com.brainserve.clientonboarding.common.domain.model.PageSlice;
+
 import com.brainserve.clientonboarding.audit.domain.model.AuditEntry;
 import com.brainserve.clientonboarding.audit.domain.repository.AuditRepository;
 import com.brainserve.clientonboarding.common.observability.RequestIds;
@@ -23,10 +26,10 @@ public class AuditService {
         this.clock = clock;
     }
 
-    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('AUDIT_READ')")
-    public com.brainserve.clientonboarding.common.domain.model.PageSlice<AuditEntry> page(
+    @PreAuthorize("hasAuthority('AUDIT_READ')")
+    public PageSlice<AuditEntry> page(
             UUID organizationId, int page, int size) {
-        return new com.brainserve.clientonboarding.common.domain.model.PageSlice<>(
+        return new PageSlice<>(
                 repository.findPage(organizationId, size, (long) page * size), page, size,
                 repository.count(organizationId));
     }

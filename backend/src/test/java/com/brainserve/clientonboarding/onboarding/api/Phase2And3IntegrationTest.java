@@ -1,5 +1,11 @@
 package com.brainserve.clientonboarding.onboarding.api;
 
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.junit.jupiter.api.AfterAll;
+
 import static com.brainserve.clientonboarding.common.infrastructure.persistence.JdbcValues.timestamp;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
@@ -43,24 +49,24 @@ import org.springframework.test.web.servlet.MvcResult;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import(TestSecurityNotificationConfiguration.class)
-@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class Phase2And3IntegrationTest {
-    private static final io.zonky.test.db.postgres.embedded.EmbeddedPostgres POSTGRES = startPostgres();
+    private static final EmbeddedPostgres POSTGRES = startPostgres();
 
-    private static io.zonky.test.db.postgres.embedded.EmbeddedPostgres startPostgres() {
-        try { return io.zonky.test.db.postgres.embedded.EmbeddedPostgres.builder().setServerConfig("unix_socket_directories", "").start(); }
+    private static EmbeddedPostgres startPostgres() {
+        try { return EmbeddedPostgres.builder().setServerConfig("unix_socket_directories", "").start(); }
         catch (java.io.IOException failure) { throw new java.io.UncheckedIOException(failure); }
     }
 
-    @org.springframework.test.context.DynamicPropertySource
-    static void database(org.springframework.test.context.DynamicPropertyRegistry properties) {
+    @DynamicPropertySource
+    static void database(DynamicPropertyRegistry properties) {
         properties.add("spring.datasource.url", () -> "jdbc:postgresql://localhost:" + POSTGRES.getPort() + "/postgres?currentSchema=app");
         properties.add("spring.datasource.username", () -> "postgres");
         properties.add("spring.datasource.password", () -> "");
         properties.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
     }
 
-    @org.junit.jupiter.api.AfterAll
+    @AfterAll
     static void closePostgres() throws java.io.IOException { POSTGRES.close(); }
 
     private static final Set<String> MANAGER_PERMISSIONS = Set.of(

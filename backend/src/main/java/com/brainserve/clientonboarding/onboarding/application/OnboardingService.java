@@ -1,5 +1,7 @@
 package com.brainserve.clientonboarding.onboarding.application;
 
+import java.util.EnumSet;
+
 import com.brainserve.clientonboarding.audit.application.AuditService;
 import com.brainserve.clientonboarding.common.error.DomainException;
 import com.brainserve.clientonboarding.common.observability.RequestMetadata;
@@ -140,7 +142,7 @@ public class OnboardingService {
         OnboardingInstance onboarding = onboardings.findById(principal.organizationId(), step.onboardingId())
                 .orElseThrow(this::notFound);
         projects.lockOnboardingProject(principal.organizationId(), onboarding.projectId());
-        if (java.util.EnumSet.of(OnboardingInstance.Status.PAUSED, OnboardingInstance.Status.EXPIRED,
+        if (EnumSet.of(OnboardingInstance.Status.PAUSED, OnboardingInstance.Status.EXPIRED,
                 OnboardingInstance.Status.CANCELLED, OnboardingInstance.Status.APPROVED,
                 OnboardingInstance.Status.COMPLETED).contains(onboarding.status())) {
             throw new DomainException("ONBOARDING_NOT_ACTIVE",

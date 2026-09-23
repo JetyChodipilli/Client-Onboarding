@@ -1,5 +1,12 @@
 package com.brainserve.clientonboarding.common.error;
 
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+
 import com.brainserve.clientonboarding.common.api.ApiError;
 import com.brainserve.clientonboarding.common.api.ApiFailure;
 import com.brainserve.clientonboarding.common.api.FieldViolation;
@@ -64,8 +71,8 @@ public class GlobalExceptionHandler {
                 "One or more request parameters are invalid.", List.of());
     }
 
-    @ExceptionHandler({org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
-            org.springframework.web.bind.MissingServletRequestParameterException.class})
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class})
     ResponseEntity<ApiFailure> handleInvalidParameter() {
         return failure(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
                 "One or more request parameters are missing or invalid.", List.of());
@@ -75,6 +82,25 @@ public class GlobalExceptionHandler {
     ResponseEntity<ApiFailure> handleUnreadableMessage() {
         return failure(HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST",
                 "The request body is missing or malformed.", List.of());
+    }
+
+    @ExceptionHandler({NoResourceFoundException.class,
+            NoHandlerFoundException.class})
+    ResponseEntity<ApiFailure> handleMissingRoute() {
+        return failure(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND",
+                "Requested resource was not found.", List.of());
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<ApiFailure> handleUnsupportedMethod() {
+        return failure(HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED",
+                "This request method is not supported.", List.of());
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    ResponseEntity<ApiFailure> handleUnsupportedMediaType() {
+        return failure(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE",
+                "Use a supported content type for this request.", List.of());
     }
 
     @ExceptionHandler(AuthenticationException.class)

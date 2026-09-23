@@ -112,6 +112,12 @@ docker compose up --build
 - Frontend: `http://localhost:3000`
 - Readiness: `http://localhost:8080/health/ready`
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
+- Internal workspace: `http://localhost:3000/app`
+- Client sign-in: `http://localhost:3000/client/login`
+
+Configure the SMTP values in `.env.example` before sending invitations. For an existing organization,
+assign `ONBOARDING_INVITE` to the appropriate internal role in role settings; it requires MFA.
+Clients receive access only to projects explicitly granted through accepted invitations.
 
 ## Verification
 
@@ -141,7 +147,7 @@ Full Phase 4 gate:
 ./scripts/verify-phase-4.sh
 ```
 
-The reviewed Phase 3 branch passed backend, frontend, PostgreSQL / Chromium, and production-container gates in [GitHub Actions run 35592880143](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/35592880143).
+The cross-phase audit passed backend, frontend, PostgreSQL / Chromium, and production-container gates in [GitHub Actions run 35849125306](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/35849125306): 55 backend tests, 12 frontend unit tests and 89 browser scenarios passed. Three repeated bootstrap scenarios are intentionally skipped outside the desktop run. Final merge checks are recorded in [PR #26](https://github.com/JetyChodipilli/Client-Onboarding/pull/26).
 
 ## Repository map
 

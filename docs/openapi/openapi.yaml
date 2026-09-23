@@ -2,7 +2,11 @@ openapi: 3.1.0
 info:
   title: Client Onboarding Platform API
   version: 0.5.0-phase-4
-  description: Identity, tenant-scoped client/project core, workflow engine, invitations, and client portal.
+  description: >-
+    Identity, tenant-scoped client/project core, workflow engine, invitations, and client portal.
+    Invalid URL parameters return 400 VALIDATION_FAILED. Authenticated unknown routes return
+    404 RESOURCE_NOT_FOUND; unsupported methods return 405 METHOD_NOT_ALLOWED and unsupported
+    request media types return 415 UNSUPPORTED_MEDIA_TYPE using the standard error envelope.
 servers:
   - url: http://localhost:8080
 tags:
