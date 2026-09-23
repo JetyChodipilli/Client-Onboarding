@@ -45,7 +45,7 @@ public class JdbcOnboardingRepository implements OnboardingRepository {
 
     @Override
     public void lockTenantCommands(UUID organizationId) {
-        jdbc.sql("SELECT id FROM organizations WHERE id = :organizationId FOR UPDATE")
+        jdbc.sql("SELECT id FROM organizations WHERE id = :organizationId FOR NO KEY UPDATE")
                 .param("organizationId", organizationId)
                 .query((resultSet, rowNumber) -> Boolean.TRUE)
                 .single();

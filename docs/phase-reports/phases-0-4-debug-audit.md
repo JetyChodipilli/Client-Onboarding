@@ -34,6 +34,11 @@ Local frontend lint, strict typecheck, 12 unit tests and production build passed
 Backend, clean PostgreSQL migrations, browser execution and container startup are being verified in GitHub
 Actions. This report is not a claim that pending checks passed. No applied migration was changed.
 
+Tenant coordination uses PostgreSQL `FOR NO KEY UPDATE`: manager/idempotency commands still
+serialize, while audit inserts can obtain foreign-key key-share locks. A regression holds that tenant
+lock while an unrelated client step completes. Phase 2/3 API integration tests now also use real PostgreSQL
+instead of H2, including production timestamp binding.
+
 ## Merge handling
 
 Main at review start: `e3cb98f6d0c374682a35918b0e762a080baa4696`. Phase 4 baseline:

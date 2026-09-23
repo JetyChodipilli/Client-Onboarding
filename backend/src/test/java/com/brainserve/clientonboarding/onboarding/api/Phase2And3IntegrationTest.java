@@ -1,5 +1,6 @@
 package com.brainserve.clientonboarding.onboarding.api;
 
+import static com.brainserve.clientonboarding.common.infrastructure.persistence.JdbcValues.timestamp;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -42,7 +43,26 @@ import org.springframework.test.web.servlet.MvcResult;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import(TestSecurityNotificationConfiguration.class)
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 class Phase2And3IntegrationTest {
+    private static final io.zonky.test.db.postgres.embedded.EmbeddedPostgres POSTGRES = startPostgres();
+
+    private static io.zonky.test.db.postgres.embedded.EmbeddedPostgres startPostgres() {
+        try { return io.zonky.test.db.postgres.embedded.EmbeddedPostgres.builder().setServerConfig("unix_socket_directories", "").start(); }
+        catch (java.io.IOException failure) { throw new java.io.UncheckedIOException(failure); }
+    }
+
+    @org.springframework.test.context.DynamicPropertySource
+    static void database(org.springframework.test.context.DynamicPropertyRegistry properties) {
+        properties.add("spring.datasource.url", () -> "jdbc:postgresql://localhost:" + POSTGRES.getPort() + "/postgres?currentSchema=app");
+        properties.add("spring.datasource.username", () -> "postgres");
+        properties.add("spring.datasource.password", () -> "");
+        properties.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+    }
+
+    @org.junit.jupiter.api.AfterAll
+    static void closePostgres() throws java.io.IOException { POSTGRES.close(); }
+
     private static final Set<String> MANAGER_PERMISSIONS = Set.of(
             "CLIENT_CREATE", "CLIENT_READ", "CLIENT_UPDATE", "PROJECT_CREATE", "PROJECT_READ",
             "PROJECT_UPDATE", "SERVICE_MANAGE", "WORKFLOW_READ", "WORKFLOW_MANAGE",
@@ -280,7 +300,7 @@ class Phase2And3IntegrationTest {
                 INSERT INTO organizations (id, slug, name, status, created_at, updated_at, version)
                 VALUES (:id, :slug, :name, 'ACTIVE', :now, :now, 0)
                 """).param("id", id).param("slug", slug).param("name", name)
-                .param("now", Instant.now()).update();
+                .param("now", timestamp(Instant.now())).update();
         return id;
     }
 
@@ -296,24 +316,24 @@ class Phase2And3IntegrationTest {
                 VALUES (:id, :email, :name, :password, 'INTERNAL', 'ACTIVE', :now, 0, 0, :now, :now, 0)
                 """).param("id", userId).param("email", email).param("name", name)
                 .param("password", passwordEncoder.encode("Integration7Password"))
-                .param("now", now).update();
+                .param("now", timestamp(now)).update();
         jdbc.sql("""
                 INSERT INTO roles (id, organization_id, name, description, created_at, updated_at, version)
                 VALUES (:id, :org, :name, '', :now, :now, 0)
                 """).param("id", roleId).param("org", organizationId).param("name", "Role " + name)
-                .param("now", now).update();
+                .param("now", timestamp(now)).update();
         for (String permission : permissions) {
             jdbc.sql("""
                     INSERT INTO role_permissions (role_id, permission_id, created_at)
                     SELECT :role, id, :now FROM permissions WHERE code = :code
-                    """).param("role", roleId).param("now", now).param("code", permission).update();
+                    """).param("role", roleId).param("now", timestamp(now)).param("code", permission).update();
         }
         jdbc.sql("""
                 INSERT INTO organization_users (id, organization_id, user_id, role_id, status,
                     invited_at, joined_at, created_at, updated_at, version)
                 VALUES (:id, :org, :user, :role, 'ACTIVE', :now, :now, :now, :now, 0)
                 """).param("id", membershipId).param("org", organizationId).param("user", userId)
-                .param("role", roleId).param("now", now).update();
+                .param("role", roleId).param("now", timestamp(now)).update();
         String raw = tokens.issue();
         auth.insertSession(new AuthSession(UUID.randomUUID(), organizationId, userId, tokens.hash(raw), 0,
                 now, now, now.plusSeconds(3600), null, mfaVerified ? now : null), "ip", "agent");

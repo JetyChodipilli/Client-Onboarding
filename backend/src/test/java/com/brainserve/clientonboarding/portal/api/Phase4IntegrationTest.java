@@ -73,6 +73,8 @@ class Phase4IntegrationTest {
     @Autowired SecureTokenService tokens;
     @Autowired Clock clock;
     @Autowired DataSource dataSource;
+    @Autowired org.springframework.transaction.PlatformTransactionManager transactionManager;
+    @Autowired com.brainserve.clientonboarding.onboarding.domain.repository.OnboardingRepository onboardings;
     @Autowired TestNotificationSender notifications;
 
     private UUID organizationA;
@@ -345,7 +347,7 @@ class Phase4IntegrationTest {
         internalTransition(welcome).andExpect(status().isConflict());
         mockMvc.perform(get("/api/v1/client-portal/projects/{id}", projectId).cookie(client))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.currentStatus").value("ON_HOLD"))
-                .andExpect(jsonPath("$.data.nextAction").isEmpty())
+                .andExpect(jsonPath("$.data.nextAction").doesNotExist())
                 .andExpect(jsonPath("$.data.steps[0].actionable").value(false))
                 .andExpect(jsonPath("$.data.steps[0].waitingFor").value("OUR_TEAM"));
         projectAction("resume", 2).andExpect(status().isOk());
@@ -420,7 +422,7 @@ class Phase4IntegrationTest {
                 jdbc.sql("UPDATE onboarding_step_instances SET requires_review=TRUE,status=:status WHERE id=:id")
                         .param("status", state).param("id", welcome).update();
                 mockMvc.perform(get("/api/v1/client-portal/projects/{id}", projectId).cookie(client))
-                        .andExpect(status().isOk()).andExpect(jsonPath("$.data.nextAction").isEmpty())
+                        .andExpect(status().isOk()).andExpect(jsonPath("$.data.nextAction").doesNotExist())
                         .andExpect(jsonPath("$.data.steps[1].waitingFor").value("OUR_TEAM"))
                         .andExpect(jsonPath("$.data.steps[1].blockingReason").value("Your team is reviewing a prerequisite."));
             }
@@ -512,6 +514,21 @@ class Phase4IntegrationTest {
                 .cookie(session).with(csrf()).contentType("application/json")
                 .content(json.writeValueAsString(java.util.Map.of("name", name, "description", "", "permissions", List.of(), "version", 0))))
                 .andReturn();
+    }
+
+    @Test
+    void tenantCommandLockDoesNotBlockUnrelatedStepAuditForeignKeys() throws Exception {
+        Cookie client = activateMember();
+        UUID welcome = step("WELCOME");
+        var executor = java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            new org.springframework.transaction.support.TransactionTemplate(transactionManager).executeWithoutResult(transaction -> {
+                onboardings.lockTenantCommands(organizationA);
+                var attempt = executor.submit(() -> transition(client, welcome, "IN_PROGRESS", 0));
+                try { attempt.get(5, java.util.concurrent.TimeUnit.SECONDS).andExpect(status().isOk()); }
+                catch (Exception failure) { throw new AssertionError("Tenant command locking must allow audit foreign-key reads", failure); }
+            });
+        } finally { executor.shutdownNow(); }
     }
 
     private UUID step(String key) {

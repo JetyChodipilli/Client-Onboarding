@@ -41,7 +41,7 @@ public class JdbcOrganizationAdminRepository implements OrganizationAdminReposit
 
     @Override
     public boolean lockOrganization(UUID organizationId) {
-        return jdbc.sql("SELECT id FROM organizations WHERE id = :id FOR UPDATE")
+        return jdbc.sql("SELECT id FROM organizations WHERE id = :id FOR NO KEY UPDATE")
                 .param("id", organizationId).query(UUID.class).optional().isPresent();
     }
 
