@@ -22,6 +22,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,7 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);
     private final OrganizationAccessRepository accessRepository;
+    private final ClientSessionAccessPort clientAccess;
     private final OrganizationAdminRepository organizationRepository;
     private final IdentityRepository identityRepository;
     private final AuthRepository authRepository;
@@ -46,6 +50,7 @@ public class AuthService {
     private final String dummyHash;
 
     public AuthService(OrganizationAccessRepository accessRepository,
+                       ClientSessionAccessPort clientAccess,
                        OrganizationAdminRepository organizationRepository,
                        IdentityRepository identityRepository,
                        AuthRepository authRepository,
@@ -60,6 +65,7 @@ public class AuthService {
                        AuthProperties properties,
                        Clock clock) {
         this.accessRepository = accessRepository;
+        this.clientAccess = clientAccess;
         this.organizationRepository = organizationRepository;
         this.identityRepository = identityRepository;
         this.authRepository = authRepository;
@@ -175,15 +181,26 @@ public class AuthService {
     @Transactional
     public SessionResult refresh(TenantPrincipal principal, RequestMetadata metadata) {
         Instant now = clock.instant();
-        authRepository.revokeSession(principal.sessionId(), now);
-        var access = accessRepository.findByUserAndOrganization(principal.userId(), principal.organizationId())
+        if (!authRepository.consumeSession(principal.organizationId(), principal.userId(), principal.sessionId(),
+                now, now.minus(properties.sessionIdleTimeout()))) throw unauthorized();
+        var internal = accessRepository.findByUserAndOrganization(principal.userId(), principal.organizationId())
                 .filter(OrganizationAccess::isUsableInternalAccess)
-                .filter(value -> value.user().isActiveAt(now))
-                .orElseThrow(this::unauthorized);
-        if (MfaAssurance.requiredFor(access.permissions()) && !principal.mfaVerified()) {
-            throw unauthorized();
+                .filter(value -> value.user().isActiveAt(now));
+        SessionResult result;
+        if (internal.isPresent()) {
+            var access = internal.get();
+            if (MfaAssurance.requiredFor(access.permissions()) && !principal.mfaVerified()) throw unauthorized();
+            result = newSession(access, metadata, now, principal.mfaVerified());
+        } else {
+            var access = clientAccess.findByUserAndOrganization(principal.userId(), principal.organizationId())
+                    .filter(value -> value.user().isActiveAt(now)).orElseThrow(this::unauthorized);
+            String raw = tokens.issue();
+            UUID sessionId = UUID.randomUUID();
+            authRepository.insertSession(new AuthSession(sessionId, access.organizationId(), access.user().id(),
+                    tokens.hash(raw), access.user().credentialVersion(), now, now,
+                    now.plus(properties.sessionDuration()), null, null), metadata.ipHash(), metadata.userAgentHash());
+            result = new SessionResult(sessionId, raw);
         }
-        var result = newSession(access, metadata, now, principal.mfaVerified());
         audit.append(principal.organizationId(), principal.userId(), "SESSION_ROTATED", "AUTH_SESSION",
                 result.sessionId(), Map.of(), Map.of(), "API", metadata.ipHash());
         return result;
@@ -207,8 +224,13 @@ public class AuthService {
                     Instant now = clock.instant();
                     authRepository.insertPasswordResetToken(UUID.randomUUID(), access.organization().id(),
                             access.user().id(), tokens.hash(raw), now.plus(properties.tokenDuration()), now);
-                    notifications.sendPasswordReset(access.user().email(), access.user().displayName(),
-                            properties.publicAppUrl() + "/reset-password?token=" + url(raw));
+                    try {
+                        notifications.sendPasswordReset(access.user().email(), access.user().displayName(),
+                                properties.publicAppUrl() + "/reset-password?token=" + url(raw));
+                    } catch (RuntimeException exception) {
+                        LOGGER.warn("Password-reset delivery failed for userId={} organizationId={}",
+                                access.user().id(), access.organization().id(), exception);
+                    }
                     audit.append(access.organization().id(), access.user().id(), "PASSWORD_RESET_REQUESTED",
                             "USER", access.user().id(), Map.of(), Map.of(), "API", metadata.ipHash());
                 });
@@ -275,9 +297,14 @@ public class AuthService {
                     authRepository.insertOrganizationInvitation(UUID.randomUUID(), access.organization().id(),
                             access.membershipId(), access.user().id(), tokens.hash(raw),
                             now.plus(properties.tokenDuration()), now);
-                    notifications.sendOrganizationInvitation(access.user().email(), access.user().displayName(),
-                            access.organization().name(), properties.publicAppUrl()
-                                    + "/accept-invitation?token=" + url(raw));
+                    try {
+                        notifications.sendOrganizationInvitation(access.user().email(), access.user().displayName(),
+                                access.organization().name(), properties.publicAppUrl()
+                                        + "/accept-invitation?token=" + url(raw));
+                    } catch (RuntimeException exception) {
+                        LOGGER.warn("Organization-invitation resend delivery failed for membershipId={} organizationId={}",
+                                access.membershipId(), access.organization().id(), exception);
+                    }
                     audit.append(access.organization().id(), access.user().id(),
                             "ORGANIZATION_INVITATION_RESENT", "ORGANIZATION_MEMBERSHIP",
                             access.membershipId(), Map.of(), Map.of(), "API", metadata.ipHash());

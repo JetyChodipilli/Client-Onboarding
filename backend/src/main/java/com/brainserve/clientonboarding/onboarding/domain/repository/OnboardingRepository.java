@@ -16,12 +16,15 @@ public interface OnboardingRepository {
                            String fingerprint, Instant now);
     OnboardingInstance insert(OnboardingInstance instance, List<OnboardingStepInstance> steps, UUID actorId);
     List<OnboardingStepInstance> findSteps(UUID organizationId, UUID onboardingId);
+    List<OnboardingStepInstance> findSteps(UUID organizationId, List<UUID> onboardingIds);
     Optional<OnboardingStepInstance> findStep(UUID organizationId, UUID stepId);
     boolean updateStepStatus(UUID organizationId, UUID stepId, OnboardingStepInstance.Status current,
                              OnboardingStepInstance.Status next, long version, UUID actorId, Instant now);
     void refreshAvailability(UUID organizationId, UUID onboardingId, UUID actorId, Instant now);
     boolean updateReadiness(UUID organizationId, UUID onboardingId, boolean ready, long version,
                             UUID actorId, Instant now);
+    boolean updateStatus(UUID organizationId, UUID onboardingId, OnboardingInstance.Status current,
+                         OnboardingInstance.Status next, long version, UUID actorId, Instant now);
 
     record IdempotentCommand(UUID resourceId, String requestFingerprint) { }
 }

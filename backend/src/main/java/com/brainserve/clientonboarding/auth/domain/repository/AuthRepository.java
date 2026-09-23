@@ -10,6 +10,7 @@ public interface AuthRepository {
     void insertSession(AuthSession session, String ipHash, String userAgentHash);
     Optional<AuthSession> findSessionByTokenHash(String tokenHash);
     void touchSession(UUID sessionId, Instant now);
+    boolean consumeSession(UUID organizationId, UUID userId, UUID sessionId, Instant now, Instant idleCutoff);
     void revokeSession(UUID sessionId, Instant now);
     void revokeAllSessions(UUID userId, Instant now);
     void insertVerificationToken(UUID id, UUID organizationId, UUID userId, String tokenHash,

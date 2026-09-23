@@ -29,7 +29,7 @@ public class JdbcClientRepository implements ClientRepository {
         var itemsQuery = jdbc.sql("SELECT * FROM clients" + where
                 + " ORDER BY created_at DESC, id DESC LIMIT :limit OFFSET :offset")
                 .param("organizationId", organizationId).param("search", "%" + search.toLowerCase() + "%")
-                .param("limit", size).param("offset", page * size);
+                .param("limit", size).param("offset", (long) page * size);
         var countQuery = jdbc.sql("SELECT COUNT(*) FROM clients" + where)
                 .param("organizationId", organizationId).param("search", "%" + search.toLowerCase() + "%");
         if (status != null) {

@@ -50,7 +50,7 @@ class ApplicationRuntimeSmokeTest {
             assertThat(readiness.statusCode()).isEqualTo(200);
             assertThat(readiness.body()).contains("\"database\":\"UP\"");
             assertThat(platform.statusCode()).isEqualTo(200);
-            assertThat(platform.body()).contains("\"phase\":\"PHASE_3\"");
+            assertThat(platform.body()).contains("\"phase\":\"PHASE_4\"");
             assertThat(platform.headers().firstValue("X-Request-ID")).contains(requestId);
             assertThat(openApi.statusCode()).isEqualTo(200);
             assertThat(openApi.body()).contains("/api/v1/platform/info");

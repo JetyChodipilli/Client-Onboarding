@@ -1,8 +1,12 @@
 openapi: 3.1.0
 info:
   title: Client Onboarding Platform API
-  version: 0.4.0-phase-3
-  description: Identity, tenant-scoped client/project core, and versioned workflow engine.
+  version: 0.5.0-phase-4
+  description: >-
+    Identity, tenant-scoped client/project core, workflow engine, invitations, and client portal.
+    Invalid URL parameters return 400 VALIDATION_FAILED. Authenticated unknown routes return
+    404 RESOURCE_NOT_FOUND; unsupported methods return 405 METHOD_NOT_ALLOWED and unsupported
+    request media types return 415 UNSUPPORTED_MEDIA_TYPE using the standard error envelope.
 servers:
   - url: http://localhost:8080
 tags:
@@ -15,6 +19,7 @@ tags:
   - name: Projects
   - name: Workflows
   - name: Onboarding
+  - name: Client Portal
   - name: Foundation
 paths:
   /api/v1/auth/csrf:
@@ -73,11 +78,13 @@ paths:
   /api/v1/auth/refresh:
     post:
       tags: [Authentication]
-      summary: Revoke the current session and issue a rotated session token
+      summary: Consume the current session once and issue a rotated session token
+      description: Concurrent rotation, revoked sessions, expiry and stale credential versions return 401.
       security: [{ cookieAuth: [] }]
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       responses:
         '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Error' }
   /api/v1/auth/forgot-password:
     post:
       tags: [Authentication]
@@ -591,6 +598,117 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/Success' }
         '409': { $ref: '#/components/responses/Error' }
+  /api/v1/onboardings/{onboardingId}/client-invitations:
+    parameters: [{ name: onboardingId, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      tags: [Client Portal]
+      security: [{ cookieAuth: [] }]
+      summary: List tenant-scoped invitations for an onboarding
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/Error' }
+    post:
+      tags: [Client Portal]
+      security: [{ cookieAuth: [] }]
+      summary: Issue a project-scoped client invitation
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: Idempotency-Key, in: header, required: false, schema: { type: string, minLength: 8, maxLength: 120 } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ClientInviteRequest' } } }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/client-invitations/{invitationId}/resend:
+    post:
+      tags: [Client Portal]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/VersionRequest' } } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/client-invitations/{invitationId}/revoke:
+    post:
+      tags: [Client Portal]
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: invitationId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/VersionRequest' } } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/client-invitations/inspect:
+    post:
+      tags: [Client Portal]
+      summary: Inspect an invitation capability without exposing the stored hash
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TokenRequest' } } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '410': { $ref: '#/components/responses/Error' }
+  /api/v1/client-invitations/accept:
+    post:
+      tags: [Client Portal]
+      summary: Consume an invitation and activate project-scoped client access
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TokenPasswordRequest' } } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '410': { $ref: '#/components/responses/Error' }
+  /api/v1/client-auth/login:
+    post:
+      tags: [Client Portal]
+      summary: Authenticate a client user without internal authorities
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/LoginRequest' } } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/client-auth/forgot-password:
+    post:
+      tags: [Client Portal]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AccountLookupRequest' } } } }
+      responses: { '202': { description: Generic accepted response } }
+  /api/v1/client-portal/projects:
+    get:
+      tags: [Client Portal]
+      security: [{ cookieAuth: [] }]
+      summary: List only explicitly granted client projects
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/client-portal/projects/{projectId}:
+    get:
+      tags: [Client Portal]
+      security: [{ cookieAuth: [] }]
+      parameters: [{ name: projectId, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/client-portal/projects/{projectId}/steps/{stepId}/transition:
+    post:
+      tags: [Client Portal]
+      security: [{ cookieAuth: [] }]
+      description: Only an ONBOARDING project with IN_PROGRESS onboarding accepts client updates; hold, cancellation and terminal states reject mutations with 409. Informational steps move AVAILABLE to IN_PROGRESS, then SUBMITTED when requiresReview is true or COMPLETED otherwise. Locked, hidden, and unassigned steps cannot be changed.
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: projectId, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: stepId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/StepTransitionRequest' } } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
   /api/v1/platform/info:
     get:
       tags: [Foundation]
@@ -650,6 +768,25 @@ components:
       properties:
         token: { type: string, maxLength: 200 }
         password: { type: string, minLength: 12, maxLength: 200 }
+    TokenRequest:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token: { type: string, maxLength: 200 }
+    ClientInviteRequest:
+      type: object
+      additionalProperties: false
+      required: [contactId, role]
+      properties:
+        contactId: { type: string, format: uuid }
+        role: { type: string, enum: [ADMIN, MEMBER] }
+    VersionRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version: { type: integer, format: int64, minimum: 0 }
     RoleRequest:
       type: object
       required: [name, permissions, version]

@@ -4,7 +4,7 @@ A multi-tenant B2B onboarding system built as a **Spring Boot modular monolith**
 
 I kept this as one deployable backend on purpose. The hard part here is not service-to-service networking; it is keeping identity, tenancy, projects, workflow definitions, workflow execution, and audit history consistent while the product is still evolving.
 
-The current `main` branch is implemented through **Phase 3**.
+The current `main` branch is implemented through **Phase 4**.
 
 ## Why a modular monolith
 
@@ -58,6 +58,14 @@ Redis and Kafka are intentionally absent from this project at the moment. I woul
 - progress and readiness rules
 - idempotent onboarding start
 
+### Phase 4 — client invitation and portal
+
+- secure, expiring invitations with resend, revoke and single-use acceptance
+- client authentication and explicit project grants
+- client dashboard, progress, next action and prerequisite explanations
+- informational step submission, revision and internal review boundaries
+- separate client and internal permissions
+
 ## The workflow decision that matters most
 
 A template can change tomorrow. An onboarding process that already started should not silently change with it.
@@ -104,6 +112,12 @@ docker compose up --build
 - Frontend: `http://localhost:3000`
 - Readiness: `http://localhost:8080/health/ready`
 - Swagger UI: `http://localhost:8080/swagger-ui.html`
+- Internal workspace: `http://localhost:3000/app`
+- Client sign-in: `http://localhost:3000/client/login`
+
+Configure the SMTP values in `.env.example` before sending invitations. For an existing organization,
+assign `ONBOARDING_INVITE` to the appropriate internal role in role settings; it requires MFA.
+Clients receive access only to projects explicitly granted through accepted invitations.
 
 ## Verification
 
@@ -127,13 +141,13 @@ npx playwright install --with-deps chromium
 npm run test:e2e
 ```
 
-Full Phase 3 gate:
+Full Phase 4 gate:
 
 ```bash
-./scripts/verify-phase-3.sh
+./scripts/verify-phase-4.sh
 ```
 
-The reviewed Phase 3 branch passed backend, frontend, PostgreSQL / Chromium, and production-container gates in [GitHub Actions run 35592880143](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/35592880143).
+The cross-phase audit passed backend, frontend, PostgreSQL / Chromium, and production-container gates in [GitHub Actions run 35849125306](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/35849125306): 55 backend tests, 12 frontend unit tests and 89 browser scenarios passed. Three repeated bootstrap scenarios are intentionally skipped outside the desktop run. Final merge checks are recorded in [PR #26](https://github.com/JetyChodipilli/Client-Onboarding/pull/26).
 
 ## Repository map
 
@@ -152,7 +166,10 @@ scripts/              Reproducible verification gates
 
 ## Current boundary
 
-Phase 4 client invitations and client portal behavior are **not on `main` yet**.
+Implementation stops at Phase 4. Forms, assets, payments, contracts and later phases remain outside the current scope.
+
+Phase 4 architecture: [client invitation and portal](docs/architecture/phase-4-client-invitation-portal.md).
+Cross-phase audit: [Phases 0–4 debug review](docs/phase-reports/phases-0-4-debug-audit.md).
 
 I keep that boundary explicit because I would rather have the README describe the code that exists today than turn roadmap work into marketing copy.
 

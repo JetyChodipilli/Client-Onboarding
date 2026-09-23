@@ -31,7 +31,7 @@ public class FoundationController {
         return ApiSuccess.of(
                 new PlatformInfo(
                         "Client Onboarding Platform",
-                        "PHASE_3",
+                        "PHASE_4",
                         "MODULAR_MONOLITH",
                         Map.of("liveness", "/health/live", "readiness", "/health/ready")
                 ),

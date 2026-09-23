@@ -60,7 +60,9 @@ public class SecurityConfiguration {
                                 "/api/v1/auth/login", "/api/v1/auth/forgot-password",
                                 "/api/v1/auth/reset-password", "/api/v1/auth/verify-email",
                                 "/api/v1/auth/email-verification/resend", "/api/v1/auth/accept-invitation",
-                                "/api/v1/auth/mfa/complete")
+                                "/api/v1/auth/mfa/complete", "/api/v1/client-auth/login",
+                                "/api/v1/client-auth/forgot-password",
+                                "/api/v1/client-invitations/inspect", "/api/v1/client-invitations/accept")
                         .permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
                         .anyRequest().authenticated())

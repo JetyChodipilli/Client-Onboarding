@@ -29,7 +29,7 @@ class FoundationControllerTest {
         mockMvc.perform(get("/api/v1/platform/info"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.phase").value("PHASE_3"))
+                .andExpect(jsonPath("$.data.phase").value("PHASE_4"))
                 .andExpect(jsonPath("$.data.architecture").value("MODULAR_MONOLITH"))
                 .andExpect(jsonPath("$.requestId", matchesPattern(UUID_PATTERN)))
                 .andExpect(header().string("X-Request-ID", matchesPattern(UUID_PATTERN)))

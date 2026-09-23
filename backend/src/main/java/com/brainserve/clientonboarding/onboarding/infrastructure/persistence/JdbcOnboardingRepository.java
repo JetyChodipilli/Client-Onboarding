@@ -45,7 +45,7 @@ public class JdbcOnboardingRepository implements OnboardingRepository {
 
     @Override
     public void lockTenantCommands(UUID organizationId) {
-        jdbc.sql("SELECT id FROM organizations WHERE id = :organizationId FOR UPDATE")
+        jdbc.sql("SELECT id FROM organizations WHERE id = :organizationId FOR NO KEY UPDATE")
                 .param("organizationId", organizationId)
                 .query((resultSet, rowNumber) -> Boolean.TRUE)
                 .single();
@@ -131,16 +131,23 @@ public class JdbcOnboardingRepository implements OnboardingRepository {
 
     @Override
     public List<OnboardingStepInstance> findSteps(UUID organizationId, UUID onboardingId) {
+        return findSteps(organizationId, List.of(onboardingId));
+    }
+
+    @Override
+    public List<OnboardingStepInstance> findSteps(UUID organizationId, List<UUID> onboardingIds) {
+        if (onboardingIds.isEmpty()) return List.of();
+        if (onboardingIds.size() > 100) throw new IllegalArgumentException("At most 100 onboardings can be read together.");
         List<StepRow> rows = jdbc.sql("""
                 SELECT * FROM onboarding_step_instances WHERE organization_id = :organizationId
-                    AND onboarding_id = :onboardingId ORDER BY display_order, id
-                """).param("organizationId", organizationId).param("onboardingId", onboardingId)
+                    AND onboarding_id IN (:onboardingIds) ORDER BY display_order, id
+                """).param("organizationId", organizationId).param("onboardingIds", onboardingIds)
                 .query(this::mapStepRow).list();
         Map<UUID, List<UUID>> dependencies = new HashMap<>();
         jdbc.sql("""
                 SELECT step_instance_id, depends_on_step_instance_id FROM onboarding_step_instance_dependencies
-                WHERE organization_id = :organizationId AND onboarding_id = :onboardingId
-                """).param("organizationId", organizationId).param("onboardingId", onboardingId)
+                WHERE organization_id = :organizationId AND onboarding_id IN (:onboardingIds)
+                """).param("organizationId", organizationId).param("onboardingIds", onboardingIds)
                 .query((rs, rowNum) -> new UUID[] { rs.getObject(1, UUID.class), rs.getObject(2, UUID.class) })
                 .list().forEach(pair -> dependencies.computeIfAbsent(pair[0], ignored -> new ArrayList<>()).add(pair[1]));
         return rows.stream().map(row -> row.toStep(dependencies.getOrDefault(row.id(), List.of()))).toList();
@@ -203,6 +210,18 @@ public class JdbcOnboardingRepository implements OnboardingRepository {
                 """).param("ready", ready).param("now", timestamp(now)).param("actor", actorId)
                 .param("organizationId", organizationId).param("id", onboardingId).param("version", version)
                 .update() == 1;
+    }
+
+    @Override
+    public boolean updateStatus(UUID organizationId, UUID onboardingId, OnboardingInstance.Status current,
+                                OnboardingInstance.Status next, long version, UUID actorId, Instant now) {
+        return jdbc.sql("""
+                UPDATE onboarding_instances SET status = :next, updated_at = :now, updated_by = :actor,
+                    version = version + 1
+                WHERE organization_id = :organizationId AND id = :id AND status = :current AND version = :version
+                """).param("next", next.name()).param("now", timestamp(now)).param("actor", actorId)
+                .param("organizationId", organizationId).param("id", onboardingId)
+                .param("current", current.name()).param("version", version).update() == 1;
     }
 
     private OnboardingInstance mapOnboarding(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {

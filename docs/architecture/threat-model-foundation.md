@@ -1,10 +1,10 @@
 # Threat-Model Foundation
 
-| Threat | Current control through Phase 3 | Required later proof |
+| Threat | Current control through Phase 4 | Required later proof |
 |---|---|---|
-| Tenant escape / BOLA | Tenant-scoped identity, client, service, project, workflow, onboarding and audit repositories; cross-tenant reads use secure 404 | Repeat cross-tenant read/update tests for each later resource |
+| Tenant escape / BOLA | Tenant-scoped identity, client, service, project, workflow, onboarding, invitation, project-grant and audit repositories; cross-tenant reads use secure 404 | Repeat cross-tenant read/update tests for each later resource |
 | Privilege escalation | Method-level permission checks, scoped roles, MFA session assurance, last-manager policy, and separate workflow/read/review authorities | Expand the deny/allow matrix with every permission |
-| Token theft/replay | Hashed opaque tokens, expiry, single use, session rotation and credential-version invalidation | Add provider/invitation replay scenarios in later phases |
+| Token theft/replay | Hashed opaque tokens, expiry, single use, revoke/resend rotation, session rotation and credential-version invalidation | Add provider callback replay scenarios in later phases |
 | Brute force | Atomic account lockout plus bounded source/subject limiter and generic errors | Add distributed edge rate limiting at deployment |
 | SQL injection | Parameterized JDBC queries, bounded search/page values, and enum-controlled transitions | API mutation/fuzz tests |
 | XSS | React escaping and strict DTO/rendering conventions | Stored/reflected XSS tests and CSP review |

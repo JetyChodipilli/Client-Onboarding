@@ -25,7 +25,7 @@ public class JdbcServiceCatalogRepository implements ServiceCatalogRepository {
         if (status != null) where += " AND status = :status";
         var items = jdbc.sql("SELECT * FROM services" + where + " ORDER BY name, id LIMIT :limit OFFSET :offset")
                 .param("organizationId", organizationId).param("search", "%" + search.toLowerCase() + "%")
-                .param("limit", size).param("offset", page * size);
+                .param("limit", size).param("offset", (long) page * size);
         var count = jdbc.sql("SELECT COUNT(*) FROM services" + where)
                 .param("organizationId", organizationId).param("search", "%" + search.toLowerCase() + "%");
         if (status != null) { items = items.param("status", status); count = count.param("status", status); }

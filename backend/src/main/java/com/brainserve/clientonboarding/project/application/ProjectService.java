@@ -129,6 +129,16 @@ public class ProjectService implements ProjectWorkflowPort {
     }
 
     @Override
+    public void lockOnboardingProject(UUID organizationId, UUID projectId) {
+        // Held until the calling use-case transaction commits; serializes lifecycle changes with step updates.
+        var status = projects.lockStatus(organizationId, projectId).orElseThrow(this::notFound);
+        if (status != ProjectRecord.Status.ONBOARDING) {
+            throw new DomainException("PROJECT_NOT_ONBOARDING",
+                    "This project is not accepting onboarding updates.", HttpStatus.CONFLICT);
+        }
+    }
+
+    @Override
     public void beginOnboarding(UUID organizationId, UUID projectId, long version, UUID actorId, Instant now) {
         ProjectRecord current = requireProject(organizationId, projectId);
         if (current.status() != ProjectRecord.Status.DRAFT) {

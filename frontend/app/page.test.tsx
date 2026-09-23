@@ -14,7 +14,7 @@ describe("Platform landing page", () => {
     process.env.NEXT_PUBLIC_API_URL = "http://localhost:8080";
   });
 
-  it("states the active workflow-engine boundary", async () => {
+  it("states the active client-portal boundary", async () => {
     const { default: Home } = await import("./page");
     render(<Home />);
 
@@ -22,6 +22,6 @@ describe("Platform landing page", () => {
       screen.getByRole("heading", { name: "Make every client start feel clear." }),
     ).toBeInTheDocument();
     expect(screen.getByText("Modular monolith")).toBeInTheDocument();
-    expect(screen.getByText("Phase 3 implemented")).toBeInTheDocument();
+    expect(screen.getByText("Phase 4 implemented")).toBeInTheDocument();
   });
 });

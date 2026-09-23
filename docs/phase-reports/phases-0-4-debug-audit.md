@@ -1,0 +1,66 @@
+# Phases 0–4 debug audit
+
+Scope: implemented Phases 0–3 on `main` plus Phase 4 on `codex/phase-4-client-portal`.
+No new phase, provider integration or deployment. Requested workflows: Ponytail Audit, Ponytail Review
+and gstack investigation/review/shipping.
+
+## Findings and fixes
+
+| Phase | Confirmed defect | Fix and regression coverage |
+|---|---|---|
+| 0 | Malformed UUID/query parameters and missing required query parameters reached the generic 500 handler | Controlled 400 envelope; unknown routes, wrong methods and media types retain 404/405/415; PostgreSQL-backed API regressions |
+| 1 | Concurrent or already-authenticated revoked sessions could rotate more than once | Atomic session consumption scoped by organization/user, expiry and credential version; replay and revocation regression |
+| 1 | Concurrent removal of manager permissions could leave no manager | Organization row lock before role/member changes; two simultaneous role edits yield one success and one last-manager conflict |
+| 1 | Audit controller accessed persistence directly | Existing audit service now owns the query; new ArchUnit controller/persistence boundary rule |
+| 1–3 | Page multiplication could overflow into negative SQL offsets | Long offsets in audit, client, service, project and workflow lists; maximum integer page regression |
+| 3–4 | Step mutations ignored project hold/cancel and internal transitions ignored paused/closed onboarding | Shared project application port with transactional row lock; hold/resume/cancel/archive, paused/terminal and concurrent hold regressions |
+| 4 | Invitations remained usable while a project was held | ONBOARDING project filter plus mutation lock; create/resend/accept rejection tests |
+| 4 | Locked steps awaiting prerequisite review were assigned back to the client | Review waits belong to the team; ALL/ANY dependency, revision and hidden-prerequisite tests |
+| 1, 4 | Logout network failures were swallowed before navigating away | Shared sign-out hook retains visible error and retry; tests for both shells plus responsive browser scenario |
+| Docs | Phase 4 report incorrectly described later-phase work on main | Corrected scope against fetched Git history; retained main's architecture README in conflict resolution |
+
+## Ponytail audit and review
+
+- `[shrink]` Both shells now reuse the same sign-out behavior instead of copying failure/retry logic.
+- `[native]` PostgreSQL conditional updates and row locks enforce concurrency; no new coordination library.
+- No safe speculative feature or security/test deletion was identified. Estimated additional cuts: 0 lines.
+- Existing module ports, bounded repositories and migration history remain. No package dependencies added.
+- Required regression code increases the diff; test volume is not treated as unnecessary complexity.
+
+## Validation
+
+Local frontend lint, strict typecheck, 12 unit tests and production build passed. Playwright discovers
+92 scenarios (four viewports; the existing full-stack bootstrap case intentionally runs only once).
+[Run 35849125306](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/35849125306),
+commit `0926f74a53189e9359beb388c9410aee43680cc0`, passed all four CI gates:
+
+- Backend: 55 tests, zero failures/errors/skips, Maven verify and runtime smoke passed.
+- Frontend: lint, typecheck, 12 unit tests and production build passed.
+- Browser: 89 passed, three intentional viewport duplicates of the bootstrap scenario skipped.
+- Containers: both production images built, clean Compose startup/migrations passed, readiness and
+  client sign-in probes passed, and no unexpected ERROR entries were found in container logs.
+
+The first audit run exposed two test assertions expecting a null field that the JSON configuration omits.
+The next exposed the logout locator matching Next.js's route announcer. Both assertions were corrected;
+no product guard was relaxed. Final HTTP 404/405/415 envelope regressions and documentation refinements
+are included in the final PR revision, which must pass the same gates before merge.
+See [PR 26](https://github.com/JetyChodipilli/Client-Onboarding/pull/26) for the final revision checks.
+No applied migration was changed.
+
+Tenant coordination uses PostgreSQL `FOR NO KEY UPDATE`: manager/idempotency commands still
+serialize, while audit inserts can obtain foreign-key key-share locks. A regression holds that tenant
+lock while an unrelated client step completes. Phase 2/3 API integration tests now also use real PostgreSQL
+instead of H2, including production timestamp binding.
+
+## Merge handling
+
+Main at review start: `e3cb98f6d0c374682a35918b0e762a080baa4696`. Phase 4 baseline:
+`2aba9c0948c87a2ff8033231ff66daf9949df886`. The README conflict is resolved by keeping main's
+architecture/tradeoff narrative and adding accurate Phase 4 scope and verification links.
+Merge is gated on current backend, frontend, browser and container checks; no force push.
+
+## Limits
+
+This is a code, security-boundary and regression audit of implemented scope, not a proof of zero defects
+or completion of Phase 13 penetration/load/production hardening. Per-instance login throttling remains
+a documented deployment limitation. Production email/ingress secrets and later phases are unchanged.

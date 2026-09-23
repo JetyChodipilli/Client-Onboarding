@@ -13,6 +13,7 @@ public interface ProjectRepository {
     PageSlice<ProjectRecord> findPage(UUID organizationId, String search, String status, UUID clientId,
                                       int page, int size);
     Optional<ProjectRecord> findById(UUID organizationId, UUID projectId);
+    Optional<ProjectRecord.Status> lockStatus(UUID organizationId, UUID projectId);
     ProjectRecord insert(ProjectRecord project, UUID actorId);
     boolean update(UUID organizationId, UUID projectId, ProjectRecord replacement, long version,
                    UUID actorId, Instant now);

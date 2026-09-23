@@ -6,6 +6,6 @@ import java.util.UUID;
 
 public interface AuditRepository {
     void append(AuditEntry entry);
-    List<AuditEntry> findPage(UUID organizationId, int limit, int offset);
+    List<AuditEntry> findPage(UUID organizationId, int limit, long offset);
     long count(UUID organizationId);
 }

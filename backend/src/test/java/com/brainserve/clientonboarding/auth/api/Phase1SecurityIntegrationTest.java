@@ -306,7 +306,8 @@ class Phase1SecurityIntegrationTest {
     }
 
     private void clearData() {
-        List.of("command_idempotency", "onboarding_step_instance_dependencies", "onboarding_step_instances",
+        List.of("client_user_project_access", "client_invitations", "command_idempotency",
+                "onboarding_step_instance_dependencies", "onboarding_step_instances",
                 "onboarding_instances", "onboarding_step_dependencies", "onboarding_template_steps",
                 "onboarding_template_versions", "onboarding_templates", "activity_logs", "project_members",
                 "projects", "client_users", "client_primary_contacts", "client_contacts", "clients", "services",

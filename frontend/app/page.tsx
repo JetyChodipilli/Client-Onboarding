@@ -130,7 +130,7 @@ export default function Home() {
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold">Platform status</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Phase 3 boundary</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Phase 4 boundary</p>
                     </div>
                     <Badge tone="success">
                       <CheckCircle2 aria-hidden="true" className="size-3.5" />
@@ -141,7 +141,7 @@ export default function Home() {
                 <div className="space-y-7 p-6">
                   <div>
                     <div className="flex items-end justify-between gap-4">
-                      <span className="text-sm font-medium">Foundation through workflow engine</span>
+                      <span className="text-sm font-medium">Foundation through client portal</span>
                       <span className="font-mono text-sm tabular-nums">100%</span>
                     </div>
                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
@@ -158,8 +158,8 @@ export default function Home() {
                       <dd className="text-right text-sm font-semibold">PostgreSQL + Flyway</dd>
                     </div>
                     <div className="flex items-center justify-between gap-5">
-                      <dt className="text-sm text-muted-foreground">Workflow engine</dt>
-                      <dd className="text-right text-sm font-semibold">Phase 3 implemented</dd>
+                      <dt className="text-sm text-muted-foreground">Client portal</dt>
+                      <dd className="text-right text-sm font-semibold">Phase 4 implemented</dd>
                     </div>
                   </dl>
                 </div>
@@ -267,7 +267,7 @@ export default function Home() {
                   Versioned workflows are ready for controlled onboarding.
                 </h2>
                 <p className="mt-6 max-w-2xl text-lg text-primary-foreground/80">
-                  Identity, client/project core, and workflow snapshots are established without introducing Phase 4 invitations or portal behavior.
+                  Identity, client/project core, workflow snapshots, and project-scoped client access are established without introducing Phase 5 forms.
                 </p>
                 <a
                   href="/login"
@@ -287,7 +287,7 @@ export default function Home() {
         <footer className="border-t bg-card/45">
           <div className="page-shell flex flex-col gap-3 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <p>Client Onboarding Platform</p>
-            <p>Phase 3 · Versioned Workflow Engine</p>
+            <p>Phase 4 · Client Invitation &amp; Portal</p>
           </div>
         </footer>
       </div>

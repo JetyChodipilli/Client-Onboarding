@@ -33,6 +33,7 @@ class ModuleBoundaryTest {
                         "com.brainserve.clientonboarding.project..",
                         "com.brainserve.clientonboarding.workflow..",
                         "com.brainserve.clientonboarding.onboarding..",
+                        "com.brainserve.clientonboarding.portal..",
                         "com.brainserve.clientonboarding.forms..",
                         "com.brainserve.clientonboarding.assets..",
                         "com.brainserve.clientonboarding.access..",
@@ -55,6 +56,14 @@ class ModuleBoundaryTest {
                 .that().resideInAPackage("..domain..")
                 .should().dependOnClassesThat().resideInAnyPackage("..api..", "..infrastructure..")
                 .allowEmptyShould(true)
+                .check(productionClasses);
+    }
+
+    @Test
+    void controllersDoNotAccessPersistenceDirectly() {
+        noClasses().that().haveSimpleNameEndingWith("Controller")
+                .should().dependOnClassesThat().resideInAnyPackage(
+                        "..domain.repository..", "org.springframework.jdbc..", "jakarta.persistence..")
                 .check(productionClasses);
     }
 
