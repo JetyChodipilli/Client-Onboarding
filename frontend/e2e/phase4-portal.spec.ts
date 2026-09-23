@@ -110,7 +110,7 @@ test.describe("Phase 4 client invitation and portal", () => {
     });
     await page.goto("/portal");
     await page.getByRole("button", { name: "Sign out" }).click();
-    await expect(page.getByRole("alert")).toContainText("Your session may still be active");
+    await expect(page.getByRole("alert").filter({ hasText: "Sign out failed." })).toContainText("Your session may still be active");
     await expect(page).toHaveURL(/\/portal$/);
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/client\/login$/);
