@@ -95,6 +95,26 @@ public class FormResponseService {
         log(p,"FORM_"+decision.name(),response,metadata);
         return view(p,steps.read(p.organizationId(),stepId));
     }
+    @PreAuthorize("hasAuthority('FORM_REVIEW')")
+    @Transactional
+    public View exception(TenantPrincipal p,UUID stepId,long version,boolean reopen,String note,RequestMetadata metadata) {
+        var context=steps.lockActive(p.organizationId(),stepId);
+        var current=view(p,context); var old=current.response();
+        if(old.version()!=version) throw FormErrors.conflict();
+        if(note==null||note.isBlank()) throw FormErrors.invalid("Explain why this questionnaire is being " + (reopen?"reopened.":"skipped."));
+        if(reopen ? !current.allowReopen() || old.status()!=ResponseStatus.APPROVED || context.step().status()!=Status.COMPLETED
+                : !current.allowSkip() || !Set.of(Status.AVAILABLE,Status.IN_PROGRESS).contains(context.step().status())
+                    || old.status()!=ResponseStatus.DRAFT) throw FormErrors.state("INVALID_FORM_TRANSITION","The workflow rules do not allow this action.");
+        var now=clock.instant();
+        var response=new Response(old.id()==null?UUID.randomUUID():old.id(),p.organizationId(),stepId,old.formVersionId(),
+                ResponseStatus.DRAFT,old.answers(),old.submissionNumber(),note.trim(),now,version+1);
+        persist(response,version,p.userId());
+        if(reopen) repository.insertReview(p.organizationId(),response,ReviewDecision.NEEDS_REVISION,note.trim(),p.userId(),now);
+        steps.transition(context,reopen?Status.IN_PROGRESS:Status.SKIPPED,p.userId(),now);
+        log(p,reopen?"FORM_REOPENED":"FORM_SKIPPED",response,metadata);
+        return view(p,steps.read(p.organizationId(),stepId));
+    }
+
     private View view(TenantPrincipal p,StepExecutionService.Context context) {
         if(context.step().stepType()!=TemplateStep.StepType.FORM||!context.step().applicable()) throw FormErrors.missing();
         var definition=configurations.require(p.organizationId(),context.step().configuration());
@@ -102,7 +122,8 @@ public class FormResponseService {
         if(!response.formVersionId().equals(definition.id())) throw new IllegalStateException("Form binding changed after snapshot");
         var template=repository.template(p.organizationId(),definition.formId()).orElseThrow(FormErrors::missing);
         return new View(template.name(),context.onboarding().projectId(),context.step().name(),context.step().status().name(),
-                context.projectStatus(),context.onboarding().status().name(),context.step().dueAt(),definition,response);
+                context.projectStatus(),context.onboarding().status().name(),context.step().dueAt(),
+                context.step().allowSkip() && !context.step().blocking(),context.step().allowReopen(),definition,response);
     }
     private void persist(Response r,long version,UUID actor) {
         if(version==0) repository.insertResponse(r,actor);
@@ -114,5 +135,6 @@ public class FormResponseService {
                 com.brainserve.clientonboarding.common.observability.RequestIds.currentCorrelationId(),clock.instant());
     }
     public record View(String formName,UUID projectId,String stepName,String stepStatus,String projectStatus,
-                       String onboardingStatus,java.time.Instant deadline,Definition definition,Response response) { }
+                       String onboardingStatus,java.time.Instant deadline,boolean allowSkip,boolean allowReopen,
+                       Definition definition,Response response) { }
 }

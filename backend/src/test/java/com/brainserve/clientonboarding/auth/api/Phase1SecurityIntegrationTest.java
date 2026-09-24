@@ -1,6 +1,7 @@
 package com.brainserve.clientonboarding.auth.api;
 
 import static org.hamcrest.Matchers.hasSize;
+import static com.brainserve.clientonboarding.common.infrastructure.persistence.JdbcValues.timestamp;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -263,7 +264,7 @@ class Phase1SecurityIntegrationTest extends com.brainserve.clientonboarding.infr
                 INSERT INTO organizations (id, slug, name, status, created_at, updated_at, version)
                 VALUES (:id, :slug, :name, 'ACTIVE', :now, :now, 0)
                 """).param("id", id).param("slug", slug).param("name", name)
-                .param("now", Instant.now()).update();
+                .param("now", timestamp(Instant.now())).update();
         return id;
     }
 
@@ -274,7 +275,7 @@ class Phase1SecurityIntegrationTest extends com.brainserve.clientonboarding.infr
                     email_verified_at, failed_login_count, credential_version, created_at, updated_at, version)
                 VALUES (:id, :email, :name, :password, 'INTERNAL', 'ACTIVE', :now, 0, 0, :now, :now, 0)
                 """).param("id", id).param("email", email).param("name", name)
-                .param("password", passwordEncoder.encode(PASSWORD)).param("now", Instant.now()).update();
+                .param("password", passwordEncoder.encode(PASSWORD)).param("now", timestamp(Instant.now())).update();
         return id;
     }
 
@@ -285,12 +286,12 @@ class Phase1SecurityIntegrationTest extends com.brainserve.clientonboarding.infr
                 INSERT INTO roles (id, organization_id, name, description, created_at, updated_at, version)
                 VALUES (:id, :organizationId, :name, '', :now, :now, 0)
                 """).param("id", id).param("organizationId", organizationId).param("name", name)
-                .param("now", now).update();
+                .param("now", timestamp(now)).update();
         for (String permission : permissions) {
             jdbc.sql("""
                     INSERT INTO role_permissions (role_id, permission_id, created_at)
                     SELECT :roleId, id, :now FROM permissions WHERE code = :code
-                    """).param("roleId", id).param("now", now).param("code", permission).update();
+                    """).param("roleId", id).param("now", timestamp(now)).param("code", permission).update();
         }
         return id;
     }
@@ -302,7 +303,7 @@ class Phase1SecurityIntegrationTest extends com.brainserve.clientonboarding.infr
                     invited_at, joined_at, created_at, updated_at, version)
                 VALUES (:id, :organizationId, :userId, :roleId, 'ACTIVE', :now, :now, :now, :now, 0)
                 """).param("id", UUID.randomUUID()).param("organizationId", organizationId)
-                .param("userId", userId).param("roleId", roleId).param("now", now).update();
+                .param("userId", userId).param("roleId", roleId).param("now", timestamp(now)).update();
     }
 
     private void clearData() {

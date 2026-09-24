@@ -150,6 +150,38 @@ class Phase5IntegrationTest {
         postJson(portalPath+"/submit",client,Map.of("version",0,"answers",Map.of("business","Company","has_site",true,"website","https://example.test"))).andExpect(status().isOk()).andExpect(jsonPath("$.data.response.status").value("APPROVED")).andExpect(jsonPath("$.data.stepStatus").value("COMPLETED"));
         review(1,"NEEDS_REVISION","Too late").andExpect(status().isConflict());
     }
+    @Test void skipAndReopenRespectSnapshotRulesAndPreserveSubmissions() throws Exception {
+        postJson("/form-responses/"+step+"/skip",admin,Map.of("version",0,"note","Not needed")).andExpect(status().isConflict());
+        postJson(portalPath+"/submit",client,Map.of("version",0,"answers",Map.of("business","Company","has_site",false))).andExpect(status().isOk());
+        review(1,"APPROVED","Confirmed").andExpect(status().isOk());
+        postJson("/form-responses/"+step+"/reopen",admin,Map.of("version",2,"note","Changed brief")).andExpect(status().isConflict());
+        jdbc.sql("UPDATE onboarding_step_instances SET allow_reopen=TRUE WHERE organization_id=? AND id=?").params(org,UUID.fromString(step)).update();
+        postJson("/form-responses/"+step+"/reopen",admin,Map.of("version",2,"note","Changed brief")).andExpect(status().isOk()).andExpect(jsonPath("$.data.stepStatus").value("IN_PROGRESS"));
+        getJson("/onboardings/"+onboarding,admin).andExpect(status().isOk()).andExpect(jsonPath("$.data.onboarding.ready").value(false));
+        getJson(portalPath+"/submissions",client).andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1));
+        jdbc.sql("UPDATE onboarding_step_instances SET allow_skip=TRUE,blocking=FALSE WHERE organization_id=? AND id=?").params(org,UUID.fromString(step)).update();
+        postJson("/form-responses/"+step+"/skip",admin,Map.of("version",3,"note","Scope changed")).andExpect(status().isOk()).andExpect(jsonPath("$.data.stepStatus").value("SKIPPED"));
+        putJson(portalPath+"/draft",client,Map.of("version",4,"answers",Map.of())).andExpect(status().isConflict());
+    }
+    @Test void concurrentSubmissionsCreateExactlyOneSnapshotAndEvent() throws Exception {
+        var pool=java.util.concurrent.Executors.newFixedThreadPool(2);var gate=new java.util.concurrent.CountDownLatch(1);
+        try {
+            java.util.concurrent.Callable<Integer> action=()->{ gate.await();return postJson(portalPath+"/submit",client,Map.of("version",0,"answers",Map.of("business","Concurrent","has_site",false))).andReturn().getResponse().getStatus(); };
+            var a=pool.submit(action);var b=pool.submit(action);gate.countDown();
+            assertThat(List.of(a.get(20,java.util.concurrent.TimeUnit.SECONDS),b.get(20,java.util.concurrent.TimeUnit.SECONDS))).containsExactlyInAnyOrder(200,409);
+        } finally { pool.shutdownNow(); }
+        assertThat(jdbc.sql("SELECT count(*) FROM form_submissions WHERE organization_id=?").param(org).query(Long.class).single()).isEqualTo(1);
+        assertThat(jdbc.sql("SELECT count(*) FROM form_outbox_events WHERE organization_id=?").param(org).query(Long.class).single()).isEqualTo(1);
+    }
+    @Test void heldProjectsAndOversizedPagesRejectSafely() throws Exception {
+        getJson("/forms?page=2147483647&size=100",admin).andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(0));
+        getJson(portalPath+"/submissions?size=21",client).andExpect(status().isBadRequest());
+        for(String state:List.of("ON_HOLD","CANCELLED")) {
+            jdbc.sql("UPDATE projects SET status=? WHERE organization_id=? AND id=?").params(state,org,UUID.fromString(project)).update();
+            putJson(portalPath+"/draft",client,Map.of("version",0,"answers",Map.of())).andExpect(status().isConflict());
+        }
+        assertThat(jdbc.sql("SELECT count(*) FROM form_responses WHERE organization_id=?").param(org).query(Long.class).single()).isZero();
+    }
     ResultActions review(long version,String decision,String note) throws Exception { return postJson("/form-responses/"+step+"/review",admin,Map.of("version",version,"decision",decision,"note",note)); }
     ResultActions postJson(String path,Cookie cookie,Object body) throws Exception { var r=post("/api/v1"+path).with(csrf()).contentType("application/json").content(json.writeValueAsString(body));if(cookie!=null)r.cookie(cookie);return mvc.perform(r); }
     ResultActions putJson(String path,Cookie cookie,Object body) throws Exception { return mvc.perform(put("/api/v1"+path).cookie(cookie).with(csrf()).contentType("application/json").content(json.writeValueAsString(body))); }
@@ -159,9 +191,9 @@ class Phase5IntegrationTest {
     Cookie internal(UUID tenant,Set<String> permissions) {
         UUID user=UUID.randomUUID(),role=UUID.randomUUID();Instant now=Instant.now();
         jdbc.sql("INSERT INTO users(id,email,display_name,password_hash,principal_type,status,email_verified_at,failed_login_count,credential_version,created_at,updated_at,version) VALUES(?,?,?,'unused','INTERNAL','ACTIVE',?,0,0,?,?,0)").params(user,user+"@example.test","Reviewer",timestamp(now),timestamp(now),timestamp(now)).update();
-        jdbc.sql("INSERT INTO roles(id,organization_id,name,created_at,updated_at,version) VALUES(?,?,?,?,?,0)").params(role,tenant,"Role "+role,timestamp(now),timestamp(now)).update();
+        jdbc.sql("INSERT INTO roles(id,organization_id,name,description,created_at,updated_at,version) VALUES(?,?,?,'',?,?,0)").params(role,tenant,"Role "+role,timestamp(now),timestamp(now)).update();
         for(String code:permissions) jdbc.sql("INSERT INTO role_permissions(role_id,permission_id,created_at) SELECT ?,id,? FROM permissions WHERE code=?").params(role,timestamp(now),code).update();
-        jdbc.sql("INSERT INTO organization_users(id,organization_id,user_id,role_id,status,created_at,updated_at,version) VALUES(?,?,?,?,'ACTIVE',?,?,0)").params(UUID.randomUUID(),tenant,user,role,timestamp(now),timestamp(now)).update();
+        jdbc.sql("INSERT INTO organization_users(id,organization_id,user_id,role_id,status,invited_at,created_at,updated_at,version) VALUES(?,?,?,?,'ACTIVE',?,?,?,0)").params(UUID.randomUUID(),tenant,user,role,timestamp(now),timestamp(now),timestamp(now)).update();
         String raw=tokens.issue();auth.insertSession(new AuthSession(UUID.randomUUID(),tenant,user,tokens.hash(raw),0,now,now,now.plusSeconds(3600),null,now),"ip","agent");return new Cookie("BOS_SESSION",raw);
     }
 }

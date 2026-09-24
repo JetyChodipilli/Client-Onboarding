@@ -458,6 +458,7 @@ function RuntimeStep({
   canReview: boolean;
   transition: (step: OnboardingStep, target: OnboardingStep["status"]) => void;
 }) {
+  const user = useCurrentUser();
   const Icon =
     step.status === "COMPLETED"
       ? CheckCircle2
@@ -494,7 +495,10 @@ function RuntimeStep({
             </p>
           </div>
         </div>
-        {step.applicable && (
+        {step.applicable && step.stepType === "FORM" && user.permissions.some((p) => ["FORM_READ", "FORM_REVIEW"].includes(p)) && (
+          <Link className="inline-flex min-h-11 items-center rounded-md border px-4 text-sm font-semibold text-primary hover:bg-muted" href={`/app/forms/responses/${step.id}`}>View questionnaire</Link>
+        )}
+        {step.applicable && step.stepType !== "FORM" && (
           <div className="flex flex-wrap gap-2">
             {step.status === "AVAILABLE" && canProgress && (
               <Button

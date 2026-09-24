@@ -1,0 +1,17 @@
+"use client";
+import { useEffect, useState } from "react";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { formsApi } from "./forms-api";
+import { formControl } from "./question-fields";
+import type { FormDefinition, FormTemplate } from "./types";
+
+export function FormVersionPicker({ value, disabled, onChange }: { value?: string; disabled: boolean; onChange: (id: string) => void }) {
+  const [forms, setForms] = useState<FormTemplate[]>([]); const [versions, setVersions] = useState<FormDefinition[]>([]);
+  const [formId, setFormId] = useState(""); const [search, setSearch] = useState(""); const [page, setPage] = useState(0); const [versionPage, setVersionPage] = useState(0); const [error, setError] = useState("");
+  useEffect(() => { if (disabled) return; let active = true; const timer = setTimeout(() => formsApi.list(search, page).then((v) => { if (active) { setForms(v); setError(""); } }).catch((e) => { if (active) setError(e.message); }), 250); return () => { active = false; clearTimeout(timer); }; }, [search, page, disabled]);
+  useEffect(() => { if (!formId || disabled) return; let active = true; formsApi.versions(formId, versionPage).then((v) => { if (active) setVersions(v); }).catch((e) => { if (active) setError(e.message); }); return () => { active = false; }; }, [formId, versionPage, disabled]);
+  if (disabled) return <p className="mt-5 text-sm text-muted-foreground">{value ? "A published form version is attached to this step." : "No form version is attached."}</p>;
+  return <fieldset className="mt-5 rounded-lg border p-4"><legend className="px-1 text-sm font-bold">Questionnaire</legend>{error && <Alert tone="error">{error}</Alert>}<label className="block text-sm font-semibold">Find a form<Input className="mt-2" value={search} maxLength={180} onChange={(e) => { setSearch(e.target.value); setPage(0); }} /></label><label className="mt-3 block text-sm font-semibold">Form template<select className={formControl} value={formId} onChange={(e) => { setFormId(e.target.value); setVersionPage(0); }}><option value="">Select a form</option>{forms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}</select></label><div className="mt-2 flex gap-2"><Button variant="ghost" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous forms</Button><Button variant="ghost" disabled={forms.length < 20} onClick={() => setPage(page + 1)}>More forms</Button></div>{formId && <><label className="mt-3 block text-sm font-semibold">Published form version<select className={formControl} value={value ?? ""} onChange={(e) => onChange(e.target.value)}><option value="">Select a published version</option>{value && !versions.some((v) => v.id === value) && <option value={value}>Previously selected version</option>}{versions.filter((v) => v.status === "PUBLISHED").map((v) => <option key={v.id} value={v.id}>Version {v.versionNumber}</option>)}</select></label><div className="mt-2 flex gap-2"><Button variant="ghost" disabled={versionPage === 0} onClick={() => setVersionPage(versionPage - 1)}>Newer versions</Button><Button variant="ghost" disabled={versions.length < 20} onClick={() => setVersionPage(versionPage + 1)}>Older versions</Button></div></>}<p className="mt-3 text-sm text-muted-foreground">{value ? "A form version is selected. Save the workflow draft to keep this selection." : "Publish a form in Forms, then select that version here."}</p></fieldset>;
+}

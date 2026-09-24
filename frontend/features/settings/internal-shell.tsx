@@ -23,6 +23,7 @@ const nav: NavItem[] = [
   { href: "/app/projects", label: "Projects", icon: GitBranch, permissions: ["PROJECT_READ"] },
   { href: "/app/services", label: "Services", icon: Settings2, permissions: ["SERVICE_MANAGE", "PROJECT_CREATE", "WORKFLOW_MANAGE"] },
   { href: "/app/workflows", label: "Workflows", icon: Network, permissions: ["WORKFLOW_READ"] },
+  { href: "/app/forms", label: "Forms", icon: ScrollText, permissions: ["FORM_READ", "FORM_MANAGE"] },
   { href: "/app/settings/organization", label: "Organization", icon: Building2, permission: "ORGANIZATION_READ" },
   { href: "/app/settings/members", label: "Members", icon: Users, permission: "USER_MANAGE" },
   { href: "/app/settings/roles", label: "Roles", icon: KeyRound, permission: "ROLE_MANAGE" },

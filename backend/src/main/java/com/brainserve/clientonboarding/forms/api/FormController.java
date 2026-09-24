@@ -63,6 +63,11 @@ public class FormController {
     private <T> ApiSuccess<T> ok(T value) { return ApiSuccess.of(value,RequestIds.currentRequestId()); }
     private <T> ApiSuccess<List<T>> page(PageSlice<T> value) { return new ApiSuccess<>(true,value.items(),value.meta(),RequestIds.currentRequestId()); }
     public record TemplateRequest(@NotBlank @Size(max=180) String name,@Size(max=1000) String description) { }
+    @PostMapping("/form-responses/{stepId}/reopen")
+    ApiSuccess<FormResponseService.View> reopen(@PathVariable UUID stepId,@Valid @RequestBody ExceptionRequest request,Authentication auth,HttpServletRequest servlet) { return ok(responses.exception(CurrentPrincipal.require(auth),stepId,request.version(),true,request.note(),RequestMetadata.from(servlet))); }
+    @PostMapping("/form-responses/{stepId}/skip")
+    ApiSuccess<FormResponseService.View> skip(@PathVariable UUID stepId,@Valid @RequestBody ExceptionRequest request,Authentication auth,HttpServletRequest servlet) { return ok(responses.exception(CurrentPrincipal.require(auth),stepId,request.version(),false,request.note(),RequestMetadata.from(servlet))); }
+    public record ExceptionRequest(@PositiveOrZero long version,@NotBlank @Size(max=2000) String note) { }
     public record SourceRequest(UUID sourceVersionId) { }
     public record FieldsRequest(@PositiveOrZero long version,@NotNull @Size(min=1,max=100) List<@NotNull FormField> fields) { }
     public record AnswersRequest(@PositiveOrZero long version,@NotNull @Size(max=100) Map<String,Object> answers) { }
