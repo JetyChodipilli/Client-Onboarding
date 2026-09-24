@@ -20,6 +20,7 @@ export class ApiClientError extends Error {
     readonly status: number,
     readonly code: string,
     readonly requestId?: string,
+    readonly fieldErrors: import("@/types/api").FieldError[] = [],
   ) {
     super(message);
     this.name = "ApiClientError";
@@ -50,6 +51,7 @@ export async function apiRequest<T>(
       response.status,
       failure?.error.code ?? "HTTP_ERROR",
       failure?.requestId,
+      failure?.error.fieldErrors,
     );
   }
 

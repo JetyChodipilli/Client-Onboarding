@@ -11,7 +11,7 @@ Read `docs/Client_Onboarding_PRD_SDLC_Implementation_Ready.docx` before changing
 - Before implementation, inspect the current code, module map, ADRs and phase report.
 - A feature is incomplete without validation, authorization, tenant-isolation, error-case and documentation coverage appropriate to its phase.
 - Never mark a placeholder, fake provider, permissive security shortcut or TODO-based critical path as production-ready.
-- Current implemented boundary: Phase 4. Do not introduce forms, assets, billing, contracts, access
+- Current implemented boundary: Phase 5. Do not introduce assets, billing, contracts, access
   collection, generic notification/reminder infrastructure, activation, or reporting without an
   explicit request for the corresponding later phase.
 
@@ -100,3 +100,16 @@ Before phase completion:
 - Invitation and portal list queries are paginated; progress reads use a bounded batch of onboarding instances.
 - The live Phase 4 browser flow requires a fresh bootstrap database and a free loopback SMTP port 1025;
   use the CI browser job for repeatable full-stack verification.
+
+## Phase 5 form invariants
+
+- Published form versions and submitted answer snapshots are immutable. New submissions append history.
+- Workflow FORM steps pin a published tenant-owned `formVersionId`; later template edits cannot replace it.
+- Conditions reference earlier fields only, use the fixed DSL and ignore hidden answers. No script/regex execution.
+- Drafts allow incomplete required values; submission validates every visible required value and format.
+- Client access uses portal grants and assignment rules. Review uses FORM_REVIEW; clients never self-approve.
+- Form response, review, workflow transition, readiness, audit and outbox changes are one transaction.
+- Lock the project, reread state and enforce optimistic response versions for every mutation.
+- Generic workflow transitions cannot mutate FORM steps. Dedicated skip/reopen actions honor snapshot rules.
+- FORM_MANAGE and FORM_REVIEW require MFA. Do not log answers or include answers in audit/outbox metadata.
+- File fields require Phase 6 security controls and are not supported here; event delivery waits for Phase 10.

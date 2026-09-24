@@ -83,7 +83,7 @@ jobs:
       - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
-      - name: Start Phase 4 backend
+      - name: Start Phase 5 backend
         working-directory: backend
         env:
           DATABASE_URL: jdbc:postgresql://127.0.0.1:5432/client_onboarding?currentSchema=app
@@ -119,7 +119,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phase-4-browser-evidence
+          name: phase-5-browser-evidence
           path: |
             frontend/playwright-report
             frontend/test-results
@@ -155,8 +155,8 @@ jobs:
           docker compose up --no-build --wait --wait-timeout 180
           curl --fail http://localhost:8080/health/ready
           curl --fail http://localhost:3000/client/login > /dev/null
-          docker compose logs --no-color > /tmp/phase-4-compose.log
-          if grep -E '"level":"ERROR"| ERROR ' /tmp/phase-4-compose.log; then exit 1; fi
+          docker compose logs --no-color > /tmp/phase-5-compose.log
+          if grep -E '"level":"ERROR"| ERROR ' /tmp/phase-5-compose.log; then exit 1; fi
       - name: Compose logs and cleanup
         if: always()
         run: |

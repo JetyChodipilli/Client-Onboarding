@@ -10,7 +10,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
 @ActiveProfiles("test")
-class ClientOnboardingApplicationTest {
+class ClientOnboardingApplicationTest extends com.brainserve.clientonboarding.infrastructure.PostgresTestDatabase {
 
     @Autowired
     private DataSource dataSource;
@@ -20,4 +20,3 @@ class ClientOnboardingApplicationTest {
         assertThat(dataSource).isNotNull();
     }
 }
-

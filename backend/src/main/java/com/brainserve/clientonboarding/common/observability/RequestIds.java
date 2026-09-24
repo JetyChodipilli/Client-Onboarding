@@ -15,5 +15,9 @@ public final class RequestIds {
         String requestId = MDC.get(REQUEST_ID_MDC_KEY);
         return requestId == null ? UUID.randomUUID().toString() : requestId;
     }
-}
 
+    public static String currentCorrelationId() {
+        String id = MDC.get(CORRELATION_ID_MDC_KEY);
+        return id == null ? currentRequestId() : id;
+    }
+}

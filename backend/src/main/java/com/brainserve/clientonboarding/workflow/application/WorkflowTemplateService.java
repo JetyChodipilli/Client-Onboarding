@@ -31,10 +31,12 @@ public class WorkflowTemplateService {
     private final ServiceCatalogRepository services;
     private final AuditService audit;
     private final Clock clock;
+    private final List<StepConfigurationValidator> validators;
 
     public WorkflowTemplateService(WorkflowTemplateRepository workflows, ServiceCatalogRepository services,
-                                   AuditService audit, Clock clock) {
+                                   AuditService audit, Clock clock, List<StepConfigurationValidator> validators) {
         this.workflows = workflows; this.services = services; this.audit = audit; this.clock = clock;
+        this.validators = validators;
     }
 
     @PreAuthorize("hasAuthority('WORKFLOW_READ')")
@@ -126,6 +128,7 @@ public class WorkflowTemplateService {
         TemplateVersion version = requireDraft(principal.organizationId(), versionId);
         List<TemplateStep> steps = workflows.findSteps(principal.organizationId(), versionId);
         validateGraph(steps);
+        steps.forEach(step -> validators.forEach(validator -> validator.validate(principal.organizationId(), step)));
         if (!workflows.publishVersion(principal.organizationId(), versionId, versionNumber, principal.userId(),
                 clock.instant())) throw conflict();
         audit.append(principal.organizationId(), principal.userId(), "WORKFLOW_VERSION_PUBLISHED",

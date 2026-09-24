@@ -59,7 +59,7 @@ test.describe("Phase 3 workflow UI", () => {
   test("shows a useful empty template state and creation path", async ({ page }) => {
     await mockApi(page, { emptyTemplates: true });
     await page.goto("/app/workflows");
-    await expect(page.getByRole("heading", { name: "Workflow templates" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Workflow templates", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "No workflow templates" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Create template" })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false);

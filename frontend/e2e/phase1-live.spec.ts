@@ -58,6 +58,13 @@ test("live backend: MFA workspace and invitation email to activated client porta
   const inbox = await smtpInbox();
   const clientContext = await browser.newContext();
   try {
+    const form = await mutate("/forms", { name: "Live project brief", description: "Launch requirements" });
+    const formDraft = await mutate(`/form-versions/${form.definition.id}/fields`, { version: 0, fields: [
+      { key: "business", label: "Business name", type: "TEXT", required: true, options: [] },
+      { key: "has_site", label: "Existing website?", type: "BOOLEAN", required: true, options: [] },
+      { key: "website", label: "Website URL", type: "URL", required: true, options: [], condition: { fieldKey: "has_site", operator: "EQUALS", value: "true" } },
+    ] }, "PUT");
+    await mutate(`/form-versions/${form.definition.id}/publish?version=${formDraft.version}`, {});
     const client = await mutate("/clients", { name: "Live Portal Client", status: "ACTIVE", version: 0 });
     const contact = await mutate(`/clients/${client.id}/contacts`, { name: "Client Reader", email: "reader@client.test", primary: true, version: 0 });
     const service = await mutate("/services", { code: "PORTAL-LIVE", name: "Portal launch", status: "ACTIVE", version: 0 });
@@ -66,7 +73,8 @@ test("live backend: MFA workspace and invitation email to activated client porta
     const versionId = template.draftVersion.id;
     const configured = await mutate(`/workflow-template-versions/${versionId}/steps`, {
       version: template.draftVersion.version,
-      steps: [{ stepKey: "WELCOME", name: "Read your welcome guide", description: "Confirm that you have read your project welcome guide.", stepType: "WELCOME", displayOrder: 0, required: true, blocking: true, clientVisible: true, requiresReview: false, dependencyMode: "NONE", allowSkip: false, allowReopen: false, configuration: {}, dependencyStepIds: [] }],
+      steps: [{ stepKey: "WELCOME", name: "Read your welcome guide", description: "Confirm that you have read your project welcome guide.", stepType: "WELCOME", displayOrder: 0, required: true, blocking: true, clientVisible: true, requiresReview: false, dependencyMode: "NONE", allowSkip: false, allowReopen: false, configuration: {}, dependencyStepIds: [] },
+        { stepKey: "BRIEF", name: "Complete your questionnaire", stepType: "FORM", displayOrder: 1, required: true, blocking: true, clientVisible: true, requiresReview: true, dependencyMode: "NONE", allowSkip: false, allowReopen: false, configuration: { formVersionId: form.definition.id }, dependencyStepIds: [] }],
     }, "PUT");
     await mutate(`/workflow-template-versions/${versionId}/publish?version=${configured.version.version}`, {});
     const onboarding = await mutate(`/projects/${project.id}/onboarding`, { templateVersionId: versionId, projectVersion: project.version });
@@ -90,6 +98,36 @@ test("live backend: MFA workspace and invitation email to activated client porta
     await clientPage.getByRole("link").filter({ has: clientPage.getByRole("heading", { name: "Live portal launch" }) }).click();
     await clientPage.getByRole("button", { name: "Start this step" }).click();
     await clientPage.getByRole("button", { name: "Mark complete" }).click();
+    await expect(clientPage.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "50");
+    await clientPage.getByRole("link", { name: "Open questionnaire" }).click();
+    await expect(clientPage.getByRole("heading", { name: "Live project brief" })).toBeVisible();
+    await clientPage.getByLabel(/Business name/).fill("First business");
+    await clientPage.getByLabel(/Existing website/).selectOption("false");
+    await expect(clientPage.getByLabel(/Website URL/)).toHaveCount(0);
+    await clientPage.getByRole("button", { name: "Save draft", exact: true }).click();
+    await expect(clientPage.getByText("Draft saved. You can return to it later.")).toBeVisible();
+    await clientPage.reload();
+    await expect(clientPage.getByLabel(/Business name/)).toHaveValue("First business");
+    await clientPage.getByRole("button", { name: "Submit answers", exact: true }).click();
+    await expect(clientPage.getByText("Your answers have been submitted.")).toBeVisible();
+    const formStep = onboarding.steps.find((step: { stepType: string }) => step.stepType === "FORM");
+    await page.goto(`/app/forms/responses/${formStep.id}`);
+    await page.getByLabel("Feedback (required for revision)").fill("Please use the legal company name.");
+    await page.getByRole("button", { name: "Request revision", exact: true }).click();
+    await expect(page.getByText("Revision requested. The client can update their answers.")).toBeVisible();
+    await clientPage.reload();
+    await expect(clientPage.getByText("Please use the legal company name.", { exact: true })).toBeVisible();
+    await clientPage.getByLabel(/Business name/).fill("Legal company name");
+    await clientPage.getByRole("button", { name: "Resubmit answers", exact: true }).click();
+    await expect(clientPage.getByText("Your answers have been submitted.")).toBeVisible();
+    await page.reload();
+    await page.getByRole("button", { name: "Approve answers", exact: true }).click();
+    await expect(page.getByText("Approved. The workflow step is complete.")).toBeVisible();
+    await clientPage.reload();
+    await expect(clientPage.getByLabel("Form response status")).toHaveText("APPROVED");
+    await clientPage.getByText(/^Submission 1 ·/).click();
+    await expect(clientPage.getByText("First business", { exact: true })).toBeVisible();
+    await clientPage.getByRole("link", { name: "Back to project" }).click();
     await expect(clientPage.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "100");
     expect((await clientContext.request.get(`${base}/clients`)).status()).toBe(403);
     await clientPage.getByRole("button", { name: "Sign out" }).click();
