@@ -189,6 +189,8 @@ scripts/              Reproducible verification gates
 
 Implementation stops at Phase 5. Assets, payments, contracts and later phases remain outside the current scope.
 
+Phase 5 validation: 69 backend tests, 16 frontend tests, the responsive browser suite, clean PostgreSQL migrations and production-container startup passed. Detailed evidence and the disclosed browser-selector correction are in the phase report and [PR #27](https://github.com/JetyChodipilli/Client-Onboarding/pull/27).
+
 Phase 5: [architecture and rollout](docs/architecture/phase-5-forms-questionnaires.md) · [phase report](docs/phase-reports/phase-5.md).
 
 Phase 4 architecture: [client invitation and portal](docs/architecture/phase-4-client-invitation-portal.md).

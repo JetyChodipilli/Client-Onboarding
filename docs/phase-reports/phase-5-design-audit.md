@@ -23,4 +23,13 @@ PostgreSQL locks/triggers enforce concurrency and immutable history. The single 
 the workflow validator SPI is required by the existing dependency-inversion rule, not speculative
 provider infrastructure. No additional deletion is justified by this phase's requirements.
 
-Browser evidence and final pass counts are recorded in the Phase 5 report after CI completes.
+Browser review used actual Chromium artifacts from CI, including the builder and submitted
+questionnaire at desktop, tablet, portrait mobile and landscape mobile sizes. The review corrected
+stale mock version/history responses and verified the published label and submission history.
+Long form titles wrap, and valid field keys such as `constructor` cannot read inherited object
+properties or create false validation errors. Numeric conditions match the server's equality rules.
+
+The live PostgreSQL/MFA/SMTP journey executes draft persistence, reviewer feedback, resubmission,
+approval, immutable history and readiness. An ambiguous older workflow heading selector uncovered
+by the regression run was narrowed to an exact match. No production guard or test expectation was
+weakened. Final pass counts and CI links are recorded in the Phase 5 report.
