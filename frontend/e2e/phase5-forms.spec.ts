@@ -27,14 +27,17 @@ async function mock(page: Page, internal = false) {
 test("client questionnaire saves a draft, shows conditions and submits", async ({ page }, testInfo) => {
   const errors: string[] = []; page.on("pageerror", (e) => errors.push(e.message));
   await mock(page);
+  let submittedAnswers: Record<string, unknown> | undefined;
+  await page.route("**/forms/step-1/submissions?*", (r) => respond(r, success(submittedAnswers ? [{ id: "submission-1", submissionNumber: 1, answers: submittedAnswers, createdAt: "2026-09-24T00:00:00Z", reviews: [] }] : [])));
   await page.route("**/forms/step-1/draft", (route) => respond(route, success({ ...view, stepStatus: "IN_PROGRESS", response: { ...view.response, ...route.request().postDataJSON(), version: 1 } })));
-  await page.route("**/forms/step-1/submit", (route) => respond(route, success({ ...view, stepStatus: "SUBMITTED", response: { ...view.response, ...route.request().postDataJSON(), status: "SUBMITTED", version: 2, submissionNumber: 1 } })));
+  await page.route("**/forms/step-1/submit", (route) => { submittedAnswers = route.request().postDataJSON().answers; return respond(route, success({ ...view, stepStatus: "SUBMITTED", response: { ...view.response, ...route.request().postDataJSON(), status: "SUBMITTED", version: 2, submissionNumber: 1 } })); });
   await page.goto(path); await expect(page.getByRole("heading", { name: "Project brief", exact: true })).toBeVisible();
   await page.getByLabel(/Business name/).fill("Acme"); await page.getByLabel(/Existing website/).selectOption("true");
   await expect(page.getByLabel(/Website URL/)).toBeVisible(); await page.getByLabel(/Website URL/).fill("https://example.test");
   await page.getByRole("button", { name: "Save draft", exact: true }).click(); await expect(page.getByText("Draft saved. You can return to it later.")).toBeVisible();
   await page.getByRole("button", { name: "Submit answers", exact: true }).click(); await expect(page.getByText("Your answers have been submitted.")).toBeVisible();
   await expect(page.getByLabel(/Business name/)).toBeDisabled();
+  await expect(page.getByText(/Submission 1 ·/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
   await page.screenshot({ path: testInfo.outputPath("questionnaire-submitted.png"), fullPage: true });
   expect(errors).toEqual([]);
@@ -60,15 +63,17 @@ test("reviewer requests revision with required feedback", async ({ page }) => {
   await page.getByRole("button", { name: "Request revision" }).click(); await expect(page.getByText("Revision requested. The client can update their answers.")).toBeVisible();
 });
 test("builder saves versioned fields and previews conditional questions", async ({ page }, testInfo) => {
-  await mock(page, true); let saved = definition;
+  await mock(page, true); let saved = { ...definition, status: "DRAFT" };
+  await page.route("**/forms/form-1/versions?*", (r) => respond(r, success([saved])));
   await page.route("**/form-versions/version-1/fields", (r) => { saved = { ...definition, ...r.request().postDataJSON(), status: "DRAFT", version: 3 }; return respond(r, success(saved)); });
-  await page.route("**/form-versions/version-1/publish?*", (r) => respond(r, success({ ...saved, status: "PUBLISHED", version: 4 })));
+  await page.route("**/form-versions/version-1/publish?*", (r) => { saved = { ...saved, status: "PUBLISHED", version: 4 }; return respond(r, success(saved)); });
   await page.goto("/app/forms/form-1"); await page.getByLabel("Question label", { exact: true }).first().fill("Legal business name");
   await page.getByRole("button", { name: "Save draft", exact: true }).click(); await expect(page.getByText("Draft saved.", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Preview questionnaire" }).click();
   await expect(page.getByLabel(/Legal business name/)).toBeVisible();
   await page.getByRole("button", { name: "Publish version", exact: true }).click();
   await expect(page.getByText("Published. This version can now be selected in a workflow.")).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Form version" })).toContainText("Version 1 · PUBLISHED");
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
   await page.screenshot({ path: testInfo.outputPath("form-builder.png"), fullPage: true });
 });

@@ -24,6 +24,9 @@ describe("questionnaires", () => {
     ];
     expect(visibleFields(numeric, {})).toHaveLength(1);
     expect(visibleFields(numeric, { constructor: 1 })).toHaveLength(2);
+    render(<QuestionFields fields={numeric} answers={{}} update={vi.fn()} />);
+    expect(screen.getByLabelText(/Count/)).toHaveAttribute("aria-invalid", "false");
+    expect(screen.getByLabelText(/Count/)).toHaveValue(null);
   });
   it("keeps false as a valid boolean answer and exposes field errors", async () => {
     const update = vi.fn();
