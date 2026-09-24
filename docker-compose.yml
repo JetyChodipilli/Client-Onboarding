@@ -1,6 +1,56 @@
 name: ${COMPOSE_PROJECT_NAME:-client-onboarding}
 
 services:
+  # Private local S3 emulator. Production uses a maintained, private, versioned S3 service.
+  storage:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-local-storage-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-local-storage-admin-change-me}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - asset-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    security_opt:
+      - no-new-privileges:true
+  storage-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    entrypoint: ["/bin/sh", "/init/init-storage.sh"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-local-storage-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-local-storage-admin-change-me}
+      ASSET_STORAGE_BUCKET: ${ASSET_STORAGE_BUCKET:-onboarding-assets}
+      ASSET_STORAGE_ACCESS_KEY: ${ASSET_STORAGE_ACCESS_KEY:-onboarding-app}
+      ASSET_STORAGE_SECRET_KEY: ${ASSET_STORAGE_SECRET_KEY:-local-asset-app-change-me}
+    volumes:
+      - ./infra/assets/init-storage.sh:/init/init-storage.sh:ro
+    depends_on:
+      storage:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+  scanner:
+    image: clamav/clamav:1.4
+    environment:
+      # Only CI disables background updates; the full image includes a real signature database.
+      CLAMAV_NO_FRESHCLAMD: ${CLAMAV_NO_FRESHCLAMD:-false}
+    ports:
+      - "127.0.0.1:3310:3310"
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
   postgres:
     image: postgres:17-alpine
     environment:
@@ -45,6 +95,13 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
       SMTP_AUTH: ${SMTP_AUTH:-false}
+      ASSET_STORAGE_ENABLED: "true"
+      ASSET_STORAGE_ENDPOINT: http://storage:9000
+      ASSET_STORAGE_PUBLIC_ENDPOINT: ${ASSET_STORAGE_PUBLIC_ENDPOINT:-http://localhost:9000}
+      ASSET_STORAGE_BUCKET: ${ASSET_STORAGE_BUCKET:-onboarding-assets}
+      ASSET_STORAGE_ACCESS_KEY: ${ASSET_STORAGE_ACCESS_KEY:-onboarding-app}
+      ASSET_STORAGE_SECRET_KEY: ${ASSET_STORAGE_SECRET_KEY:-local-asset-app-change-me}
+      ASSET_SCANNER_HOST: scanner
       APP_BOOTSTRAP_ENABLED: ${APP_BOOTSTRAP_ENABLED:-false}
       APP_BOOTSTRAP_ORGANIZATION_NAME: ${APP_BOOTSTRAP_ORGANIZATION_NAME:-}
       APP_BOOTSTRAP_ORGANIZATION_SLUG: ${APP_BOOTSTRAP_ORGANIZATION_SLUG:-}
@@ -55,6 +112,10 @@ services:
       - "8080:8080"
     depends_on:
       postgres:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+      scanner:
         condition: service_healthy
     healthcheck:
       test:
@@ -78,6 +139,9 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+        NEXT_PUBLIC_ASSET_STORAGE_ORIGIN: ${NEXT_PUBLIC_ASSET_STORAGE_ORIGIN:-http://localhost:9000}
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
     ports:
@@ -95,3 +159,4 @@ services:
 
 volumes:
   postgres-data:
+  asset-data:

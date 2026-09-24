@@ -56,8 +56,8 @@ CREATE INDEX ix_asset_outbox_pending ON asset_outbox_events(occurred_at,id) WHER
 
 CREATE FUNCTION guard_asset_requirement() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
- IF TG_OP='DELETE' OR ROW(NEW.name,NEW.instructions,NEW.allowed_mimes,NEW.max_bytes,NEW.organization_id)
-    IS DISTINCT FROM ROW(OLD.name,OLD.instructions,OLD.allowed_mimes,OLD.max_bytes,OLD.organization_id)
+ IF TG_OP='DELETE' OR ROW(NEW.id,NEW.name,NEW.instructions,NEW.allowed_mimes,NEW.max_bytes,NEW.organization_id,NEW.created_at,NEW.created_by)
+    IS DISTINCT FROM ROW(OLD.id,OLD.name,OLD.instructions,OLD.allowed_mimes,OLD.max_bytes,OLD.organization_id,OLD.created_at,OLD.created_by)
  THEN RAISE EXCEPTION 'Asset requirement content is immutable' USING ERRCODE='23514'; END IF;
  RETURN NEW;
 END $$;
@@ -66,8 +66,8 @@ CREATE TRIGGER immutable_asset_requirement BEFORE UPDATE OR DELETE ON asset_requ
 CREATE FUNCTION guard_asset_version() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  IF TG_OP='DELETE' THEN RAISE EXCEPTION 'Asset versions are retained' USING ERRCODE='23514'; END IF;
- IF ROW(NEW.organization_id,NEW.asset_id,NEW.version_number,NEW.filename,NEW.declared_mime,NEW.byte_size,NEW.sha256,NEW.object_key)
- IS DISTINCT FROM ROW(OLD.organization_id,OLD.asset_id,OLD.version_number,OLD.filename,OLD.declared_mime,OLD.byte_size,OLD.sha256,OLD.object_key)
+ IF ROW(NEW.id,NEW.organization_id,NEW.asset_id,NEW.version_number,NEW.filename,NEW.declared_mime,NEW.byte_size,NEW.sha256,NEW.object_key,NEW.created_at,NEW.created_by,NEW.upload_expires_at)
+ IS DISTINCT FROM ROW(OLD.id,OLD.organization_id,OLD.asset_id,OLD.version_number,OLD.filename,OLD.declared_mime,OLD.byte_size,OLD.sha256,OLD.object_key,OLD.created_at,OLD.created_by,OLD.upload_expires_at)
  OR (OLD.object_version_id IS NOT NULL AND NEW.object_version_id IS DISTINCT FROM OLD.object_version_id)
  THEN RAISE EXCEPTION 'Asset file identity is immutable' USING ERRCODE='23514'; END IF;
  RETURN NEW;

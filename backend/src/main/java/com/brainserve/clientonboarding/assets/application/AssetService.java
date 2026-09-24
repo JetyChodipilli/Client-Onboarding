@@ -46,7 +46,7 @@ public class AssetService {
     @PreAuthorize("hasAuthority('CLIENT_PORTAL_STEP_UPDATE')")
     public AssetViews.Upload upload(TenantPrincipal p,UUID projectId,UUID stepId,long version,String filename,String mime,long size,String sha256,RequestMetadata metadata) {
         portal.requireStepAccess(p,projectId,stepId);
-        var file=tx.execute(status->{
+        var prepared=tx.execute(status->{
             var context=steps.lockActive(p.organizationId(),stepId);portal.requireStepAccess(p,projectId,stepId);
             var current=view(context);editable(context);if(current.version()!=version)throw AssetErrors.conflict();
             String safe;
@@ -60,11 +60,12 @@ public class AssetService {
                     p.organizationId()+"/"+projectId+"/"+asset.id()+"/"+id,null,Status.REQUESTED,ScanStatus.PENDING,null,null,now.plusSeconds(600),null,null,null,now,0);
             if(old!=null)save(old.status(Status.REPLACED,old.reviewNote()),p);
             repository.insertFile(next,p.userId());bump(asset,id,p);
-            steps.transition(context,OnboardingStepInstance.Status.IN_PROGRESS,p.userId(),now);log(p,asset,id,"ASSET_UPLOAD_REQUESTED",metadata);return next;
+            steps.transition(context,OnboardingStepInstance.Status.IN_PROGRESS,p.userId(),now);log(p,asset,id,"ASSET_UPLOAD_REQUESTED",metadata);
+            return new PreparedUpload(next,view(steps.read(p.organizationId(),stepId)));
         });
         // Provider calls never hold the project/database lock. A failed URL request can be safely replaced.
-        var signed=storage.upload(file.objectKey(),mime,size,sha256);
-        return new AssetViews.Upload(view(steps.read(p.organizationId(),stepId)),signed);
+        var signed=storage.upload(prepared.file().objectKey(),mime,size,sha256);
+        return new AssetViews.Upload(prepared.view(),signed);
     }
     @PreAuthorize("hasAuthority('ASSET_REVIEW')")
     public AssetViews.View review(TenantPrincipal p,UUID stepId,long version,Decision decision,String note,RequestMetadata metadata) {
@@ -122,4 +123,5 @@ public class AssetService {
         return repository.asset(p.organizationId(),step).orElseGet(()->{var a=new Asset(UUID.randomUUID(),p.organizationId(),step,requirement,null,0);repository.insertAsset(a,p.userId(),clock.instant());return a;});
     }
     private String note(String note,boolean required) {if(required&&(note==null||note.isBlank())||note!=null&&note.length()>2000)throw AssetErrors.invalid("Provide an explanation of at most 2000 characters.");return note==null?null:note.trim();}
+    private record PreparedUpload(FileVersion file,AssetViews.View view) { }
 }
