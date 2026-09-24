@@ -17,8 +17,10 @@ export function visibleFields(fields: FormField[], answers: Answers): FormField[
   return fields.filter((field) => {
     const c = field.condition;
     const value = c && Object.hasOwn(visible, c.fieldKey) ? visible[c.fieldKey] : undefined;
-    const shown = !c || value !== undefined && (c.operator === "CONTAINS" ? Array.isArray(value) && value.includes(c.value) : c.operator === "EQUALS" ? String(value) === c.value : String(value) !== c.value);
-    if (shown && answers[field.key] !== undefined && answers[field.key] !== "" && (!Array.isArray(answers[field.key]) || (answers[field.key] as string[]).length > 0)) visible[field.key] = answers[field.key];
+    const equal = typeof value === "number" && c ? value === Number(c.value) : String(value) === c?.value;
+    const shown = !c || value !== undefined && (c.operator === "CONTAINS" ? Array.isArray(value) && value.includes(c.value) : c.operator === "EQUALS" ? equal : !equal);
+    const answer = Object.hasOwn(answers, field.key) ? answers[field.key] : undefined;
+    if (shown && answer !== undefined && (typeof answer !== "string" || answer.trim() !== "") && (!Array.isArray(answer) || answer.length > 0)) visible[field.key] = answer;
     return shown;
   });
 }

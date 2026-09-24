@@ -4,7 +4,7 @@ A multi-tenant B2B onboarding system built as a **Spring Boot modular monolith**
 
 I kept this as one deployable backend on purpose. The hard part here is not service-to-service networking; it is keeping identity, tenancy, projects, workflow definitions, workflow execution, and audit history consistent while the product is still evolving.
 
-The current `main` branch is implemented through **Phase 4**.
+This branch implements **Phase 5 — Forms & Questionnaires**. The phase report records its verification and delivery status.
 
 ## Why a modular monolith
 
@@ -26,7 +26,7 @@ PostgreSQL
 
 Redis and Kafka are intentionally absent from this project at the moment. I would rather add them when a real workload requires them than because the architecture diagram looks better with more boxes.
 
-## What is on `main`
+## What is implemented
 
 ### Phase 1 — identity and tenancy
 
@@ -65,6 +65,23 @@ Redis and Kafka are intentionally absent from this project at the moment. I woul
 - client dashboard, progress, next action and prerequisite explanations
 - informational step submission, revision and internal review boundaries
 - separate client and internal permissions
+
+### Phase 5 — forms and questionnaires
+
+- reusable form templates with immutable published versions
+- conditional fields and authoritative submission validation
+- saved drafts, review, revision feedback, resubmission and approval
+- immutable answer snapshots and review history
+- project-scoped client collection and permission-scoped internal review
+- atomic workflow/readiness updates, audit and durable form events
+
+Open **Forms** in the internal workspace, create and publish a questionnaire, then select that version
+on a FORM step in the workflow builder. Clients open questionnaires from their project portal.
+Reviewers open **View questionnaire** from the internal project page.
+
+Existing organizations must assign `FORM_READ`, `FORM_MANAGE`, and/or `FORM_REVIEW` through Settings → Roles.
+Manage/review permissions require MFA. Flyway applies `V7__forms_and_questionnaires.sql` without
+changing V1–V6. Files/uploads remain Phase 6; Phase 10 adds delivery of the durable form events.
 
 ## The workflow decision that matters most
 
@@ -141,11 +158,15 @@ npx playwright install --with-deps chromium
 npm run test:e2e
 ```
 
-Full Phase 4 gate:
+Full Phase 5 gate:
 
 ```bash
-./scripts/verify-phase-4.sh
+LIVE_BACKEND=1 ./scripts/verify-phase-5.sh
 ```
+
+The local gate requires a fresh running bootstrap backend configured like the CI browser job,
+Chromium, Docker and a free loopback SMTP port 1025. CI provisions these prerequisites and also
+verifies clean Compose startup and logs. The script refuses to silently skip the live browser scenario.
 
 The cross-phase audit passed backend, frontend, PostgreSQL / Chromium, and production-container gates in [GitHub Actions run 35849125306](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/35849125306): 55 backend tests, 12 frontend unit tests and 89 browser scenarios passed. Three repeated bootstrap scenarios are intentionally skipped outside the desktop run. Final merge checks are recorded in [PR #26](https://github.com/JetyChodipilli/Client-Onboarding/pull/26).
 
@@ -166,7 +187,9 @@ scripts/              Reproducible verification gates
 
 ## Current boundary
 
-Implementation stops at Phase 4. Forms, assets, payments, contracts and later phases remain outside the current scope.
+Implementation stops at Phase 5. Assets, payments, contracts and later phases remain outside the current scope.
+
+Phase 5: [architecture and rollout](docs/architecture/phase-5-forms-questionnaires.md) · [phase report](docs/phase-reports/phase-5.md).
 
 Phase 4 architecture: [client invitation and portal](docs/architecture/phase-4-client-invitation-portal.md).
 Cross-phase audit: [Phases 0–4 debug review](docs/phase-reports/phases-0-4-debug-audit.md).

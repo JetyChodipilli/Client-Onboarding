@@ -38,6 +38,9 @@ public final class FormPolicy {
                 var source = earlier.get(c.fieldKey());
                 boolean multi = source.type() == FormField.Type.CHECKBOX || source.type() == FormField.Type.MULTI_SELECT;
                 if (multi != (c.operator() == FormField.Operator.CONTAINS)) fail(key, "Use CONTAINS for multiple-choice conditions and EQUALS or NOT_EQUALS otherwise.");
+                if (source.type()==FormField.Type.NUMBER && !validNumber(c.value())) fail(key,"Numeric conditions require a finite number.");
+                if (source.type()==FormField.Type.BOOLEAN && !Set.of("true","false").contains(c.value())) fail(key,"Boolean conditions use true or false.");
+                if (!source.options().isEmpty() && !source.options().contains(c.value())) fail(key,"The condition must use a configured option.");
             }
             earlier.put(key, field);
         }
@@ -58,7 +61,7 @@ public final class FormPolicy {
             }
             boolean valid = switch (f.type()) {
                 case BOOLEAN -> value instanceof Boolean;
-                case NUMBER -> value instanceof Number && value.toString().length() <= 100;
+                case NUMBER -> value instanceof Number && validNumber(value.toString());
                 case CHECKBOX, MULTI_SELECT -> value instanceof List<?> list && list.size() <= 50
                         && list.stream().allMatch(v -> v instanceof String && f.options().contains(v))
                         && new HashSet<>(list).size() == list.size();
@@ -77,9 +80,12 @@ public final class FormPolicy {
         if (c == null) return true;
         Object value = visibleAnswers.get(c.fieldKey());
         if (value == null) return false;
+        boolean equals = value instanceof Number && validNumber(c.value())
+                ? new BigDecimal(value.toString()).compareTo(new BigDecimal(c.value()))==0
+                : value.toString().equals(c.value());
         return switch (c.operator()) {
-            case EQUALS -> value.toString().equals(c.value());
-            case NOT_EQUALS -> !value.toString().equals(c.value());
+            case EQUALS -> equals;
+            case NOT_EQUALS -> !equals;
             case CONTAINS -> value instanceof List<?> values && values.contains(c.value());
         };
     }
@@ -103,6 +109,10 @@ public final class FormPolicy {
         }
     }
     private static void fail(String key, String message) { throw new InvalidAnswer(key, message); }
+    private static boolean validNumber(String value) {
+        if(value.length()>100) return false;
+        try { new BigDecimal(value); return true; } catch(NumberFormatException e) { return false; }
+    }
     public static final class InvalidAnswer extends IllegalArgumentException {
         private final String field;
         public InvalidAnswer(String field, String message) { super(message); this.field = field; }

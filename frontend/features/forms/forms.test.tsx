@@ -15,6 +15,15 @@ describe("questionnaires", () => {
     expect(visibleFields(fields, { has_site: false, website: "https://hidden.example" }).map((f) => f.key)).toEqual(["has_site"]);
     expect(visibleFields(fields, { has_site: true, website: "https://example.test" })).toHaveLength(3);
     expect(visibleFields(fields, { has_site: true, website: "" })).toHaveLength(2);
+    expect(visibleFields(fields, { has_site: true, website: "  " })).toHaveLength(2);
+  });
+  it("compares numeric conditions consistently and ignores inherited object properties", () => {
+    const numeric: FormField[] = [
+      { key: "constructor", label: "Count", type: "NUMBER", required: false, options: [] },
+      { key: "details", label: "Details", type: "TEXT", required: false, options: [], condition: { fieldKey: "constructor", operator: "EQUALS", value: "1.0" } },
+    ];
+    expect(visibleFields(numeric, {})).toHaveLength(1);
+    expect(visibleFields(numeric, { constructor: 1 })).toHaveLength(2);
   });
   it("keeps false as a valid boolean answer and exposes field errors", async () => {
     const update = vi.fn();

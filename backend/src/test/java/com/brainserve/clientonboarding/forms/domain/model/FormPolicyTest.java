@@ -45,4 +45,11 @@ class FormPolicyTest {
         assertThatThrownBy(() -> FormPolicy.answers(List.of(f),Map.of("channels",List.of("Web","Web")),true)).isInstanceOf(FormPolicy.InvalidAnswer.class);
         assertThatThrownBy(() -> FormPolicy.answers(List.of(f),Map.of("channels",List.of("Unknown")),false)).isInstanceOf(FormPolicy.InvalidAnswer.class);
     }
+    @Test void numericConditionsIgnoreScaleAndRejectNonFiniteDraftValues() {
+        var count=field("count",FormField.Type.NUMBER,true,null);
+        var detail=field("detail",FormField.Type.TEXT,true,new FormField.Condition("count",FormField.Operator.EQUALS,"1.0"));
+        FormPolicy.validateDefinition(List.of(count,detail));
+        assertThatThrownBy(() -> FormPolicy.answers(List.of(count,detail),Map.of("count",1),true)).isInstanceOf(FormPolicy.InvalidAnswer.class).hasMessage("This field is required.");
+        assertThatThrownBy(() -> FormPolicy.answers(List.of(count),Map.of("count",Double.POSITIVE_INFINITY),false)).isInstanceOf(FormPolicy.InvalidAnswer.class);
+    }
 }

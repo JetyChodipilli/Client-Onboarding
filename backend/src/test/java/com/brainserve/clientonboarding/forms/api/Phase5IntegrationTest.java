@@ -93,7 +93,7 @@ class Phase5IntegrationTest {
     }
     @Test void tenantPermissionsGrantsCsrfAndGenericTransitionsCannotBypassForms() throws Exception {
         getJson("/forms/"+form,foreign).andExpect(status().isNotFound());
-        putJson("/form-versions/"+definition+"/fields",foreign,Map.of("version",2,"fields",List.of())).andExpect(status().isBadRequest());
+        putJson("/form-versions/"+definition+"/fields",foreign,Map.of("version",2,"fields",List.of(Map.of("key","probe","label","Probe","type","TEXT","required",false)))).andExpect(status().isNotFound());
         postJson("/form-versions/"+definition+"/publish?version=2",foreign,Map.of()).andExpect(status().isNotFound());
         getJson("/form-responses/"+step,foreign).andExpect(status().isNotFound());
         getJson("/forms",client).andExpect(status().isForbidden());

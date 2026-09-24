@@ -14,7 +14,7 @@
 | `workflow` | Templates, versions, steps, conditions and dependencies | `common`, `audit`, `servicecatalog` |
 | `onboarding` | Workflow snapshots, instances, step instances and readiness | `common`, `audit`, `project`, `workflow` |
 | `portal` | Client invitations, client-user linkage, project grants and portal read model | `common`, `audit`, `auth`, `identity`, `onboarding`, `project`, `workflow` |
-| `forms` | Form templates/versions, submissions, answers and review | `common`, `organization`, `project`, `workflow` SPI |
+| `forms` | Form templates/versions, responses, immutable submissions/reviews and form outbox | `common`, `audit`, `portal` application access, `onboarding` application execution, `workflow` validator SPI |
 | `assets` | Requirements, metadata, versions, scan/review state and download authorization | `common`, `organization`, `project`, `workflow` SPI |
 | `access` | Access types, guides, requests and verification | `common`, `organization`, `project`, `workflow` SPI |
 | `billing` | Invoices, items, policies, balances and refunds | `common`, `organization`, `project`, `workflow` SPI |

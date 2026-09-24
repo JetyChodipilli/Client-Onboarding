@@ -124,7 +124,7 @@ test("live backend: MFA workspace and invitation email to activated client porta
     await page.getByRole("button", { name: "Approve answers", exact: true }).click();
     await expect(page.getByText("Approved. The workflow step is complete.")).toBeVisible();
     await clientPage.reload();
-    await expect(clientPage.getByText("APPROVED", { exact: true })).toBeVisible();
+    await expect(clientPage.getByLabel("Form response status")).toHaveText("APPROVED");
     await clientPage.getByText(/^Submission 1 ·/).click();
     await expect(clientPage.getByText("First business", { exact: true })).toBeVisible();
     await clientPage.getByRole("link", { name: "Back to project" }).click();

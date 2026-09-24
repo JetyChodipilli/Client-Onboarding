@@ -1,9 +1,4 @@
 spring:
-  datasource:
-    url: jdbc:h2:mem:client_onboarding;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;INIT=CREATE SCHEMA IF NOT EXISTS app\;CREATE DOMAIN IF NOT EXISTS app.TIMESTAMPTZ AS TIMESTAMP WITH TIME ZONE\;SET SCHEMA app
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
   flyway:
     enabled: true
     create-schemas: true
