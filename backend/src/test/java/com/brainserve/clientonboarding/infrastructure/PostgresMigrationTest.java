@@ -42,14 +42,14 @@ class PostgresMigrationTest {
 
     @Test
     void cleanPostgresDatabaseMigratesToLatestVersion() throws Exception {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("7");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("8");
         try (var connection = dataSource.getConnection();
              var statement = connection.prepareStatement(
                      "select count(*) from app.flyway_schema_history "
                              + "where success = true and version is not null");
              var result = statement.executeQuery()) {
             assertThat(result.next()).isTrue();
-            assertThat(result.getInt(1)).isEqualTo(7);
+            assertThat(result.getInt(1)).isEqualTo(8);
         }
     }
 }
