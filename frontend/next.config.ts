@@ -2,13 +2,14 @@ import type { NextConfig } from "next";
 
 const development = process.env.NODE_ENV === "development";
 const apiOrigin = new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").origin;
+const storageOrigin = new URL(process.env.NEXT_PUBLIC_ASSET_STORAGE_ORIGIN ?? "http://localhost:9000").origin;
 const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${development ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
-  `connect-src 'self' ${apiOrigin}${development ? " ws: wss:" : ""}`,
+  `connect-src 'self' ${apiOrigin} ${storageOrigin}${development ? " ws: wss:" : ""}`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

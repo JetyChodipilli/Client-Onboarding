@@ -1,7 +1,7 @@
 INSERT INTO permissions(id,code,description,created_at) VALUES
  ('00000000-0000-0000-0000-000000000034','ASSET_READ','Read project assets and requirements',CURRENT_TIMESTAMP),
- ('00000000-0000-0000-0000-000000000035','ASSET_MANAGE','Manage asset requirements',CURRENT_TIMESTAMP),
- ('00000000-0000-0000-0000-000000000036','ASSET_REVIEW','Review, revise and approve assets',CURRENT_TIMESTAMP);
+ ('00000000-0000-0000-0000-000000000035','ASSET_MANAGE','Manage asset requirements',CURRENT_TIMESTAMP);
+-- ASSET_REVIEW is already part of the V2 permission catalog. Existing role grants are preserved.
 
 CREATE TABLE asset_requirements (
  id uuid PRIMARY KEY, organization_id uuid NOT NULL REFERENCES organizations(id),

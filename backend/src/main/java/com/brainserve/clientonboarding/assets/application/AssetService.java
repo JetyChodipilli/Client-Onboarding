@@ -103,7 +103,7 @@ public class AssetService {
         if(file.scanStatus()!=ScanStatus.CLEAN||file.objectVersionId()==null)throw AssetErrors.state("This file is not available until validation and malware scanning succeed.");
         return storage.download(file.objectKey(),file.objectVersionId(),file.filename());
     }
-    void authorize(TenantPrincipal p,UUID projectId,UUID stepId) {if(p.hasPermission("CLIENT_PORTAL_READ"))portal.requireStepAccess(p,projectId,stepId);}
+    void authorize(TenantPrincipal p,UUID projectId,UUID stepId) {if(projectId!=null||p.hasPermission("CLIENT_PORTAL_READ"))portal.requireStepAccess(p,projectId,stepId);}
     AssetViews.View view(StepExecutionService.Context context) {
         var step=context.step();if(step.stepType()!=TemplateStep.StepType.FILE_UPLOAD||!step.applicable())throw AssetErrors.missing();
         var requirement=configurations.require(step.organizationId(),step.configuration());var asset=repository.asset(step.organizationId(),step.id()).orElse(null);
