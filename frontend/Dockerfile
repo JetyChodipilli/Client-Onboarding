@@ -6,6 +6,10 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 
 FROM node:24-alpine AS build
 WORKDIR /app
+ARG NEXT_PUBLIC_API_URL=http://localhost:8080
+ARG NEXT_PUBLIC_ASSET_STORAGE_ORIGIN=http://localhost:9000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_ASSET_STORAGE_ORIGIN=$NEXT_PUBLIC_ASSET_STORAGE_ORIGIN
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
@@ -24,4 +28,3 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 CMD ["node", "server.js"]
-

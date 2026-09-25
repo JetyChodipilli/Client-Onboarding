@@ -130,7 +130,7 @@ export default function Home() {
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-semibold">Platform status</p>
-                      <p className="mt-1 text-sm text-muted-foreground">Phase 4 boundary</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Phase 6 boundary</p>
                     </div>
                     <Badge tone="success">
                       <CheckCircle2 aria-hidden="true" className="size-3.5" />
@@ -159,7 +159,7 @@ export default function Home() {
                     </div>
                     <div className="flex items-center justify-between gap-5">
                       <dt className="text-sm text-muted-foreground">Client portal</dt>
-                      <dd className="text-right text-sm font-semibold">Phase 4 implemented</dd>
+                      <dd className="text-right text-sm font-semibold">Phase 6 implemented</dd>
                     </div>
                   </dl>
                 </div>
@@ -267,7 +267,7 @@ export default function Home() {
                   Versioned workflows are ready for controlled onboarding.
                 </h2>
                 <p className="mt-6 max-w-2xl text-lg text-primary-foreground/80">
-                  Identity, client/project core, workflow snapshots, and project-scoped client access are established without introducing Phase 5 forms.
+                  Identity, client/project core, workflow snapshots, the client portal, questionnaires and secure file collection are implemented.
                 </p>
                 <a
                   href="/login"
@@ -287,7 +287,7 @@ export default function Home() {
         <footer className="border-t bg-card/45">
           <div className="page-shell flex flex-col gap-3 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <p>Client Onboarding Platform</p>
-            <p>Phase 4 · Client Invitation &amp; Portal</p>
+            <p>Phase 6 · Asset Management</p>
           </div>
         </footer>
       </div>

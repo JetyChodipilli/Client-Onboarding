@@ -130,8 +130,8 @@ public class OnboardingService {
                                          RequestMetadata metadata) {
         OnboardingStepInstance step = onboardings.findStep(principal.organizationId(), stepId)
                 .orElseThrow(this::notFound);
-        if (step.stepType() == TemplateStep.StepType.FORM) throw new DomainException("DEDICATED_STEP_FLOW_REQUIRED",
-                "Use the form response and review actions for this step.", HttpStatus.CONFLICT);
+        if (step.stepType() == TemplateStep.StepType.FORM || step.stepType() == TemplateStep.StepType.FILE_UPLOAD) throw new DomainException("DEDICATED_STEP_FLOW_REQUIRED",
+                "Use the dedicated submission and review actions for this step.", HttpStatus.CONFLICT);
         boolean reviewAction = requiresReviewPermission(step, command.targetStatus());
         if (reviewAction && !principal.hasPermission("ONBOARDING_REVIEW")) {
             throw new DomainException("PERMISSION_DENIED",

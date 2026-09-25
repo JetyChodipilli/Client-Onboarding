@@ -498,7 +498,10 @@ function RuntimeStep({
         {step.applicable && step.stepType === "FORM" && user.permissions.some((p) => ["FORM_READ", "FORM_REVIEW"].includes(p)) && (
           <Link className="inline-flex min-h-11 items-center rounded-md border px-4 text-sm font-semibold text-primary hover:bg-muted" href={`/app/forms/responses/${step.id}`}>View questionnaire</Link>
         )}
-        {step.applicable && step.stepType !== "FORM" && (
+        {step.applicable && step.stepType === "FILE_UPLOAD" && user.permissions.some((p) => ["ASSET_READ", "ASSET_REVIEW"].includes(p)) && (
+          <Link className="inline-flex min-h-11 items-center rounded-md border px-4 text-sm font-semibold text-primary hover:bg-muted" href={`/app/assets/responses/${step.id}`}>View project file</Link>
+        )}
+        {step.applicable && !["FORM", "FILE_UPLOAD"].includes(step.stepType) && (
           <div className="flex flex-wrap gap-2">
             {step.status === "AVAILABLE" && canProgress && (
               <Button

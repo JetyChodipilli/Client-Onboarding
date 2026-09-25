@@ -50,10 +50,12 @@ class ApplicationRuntimeSmokeTest {
             assertThat(readiness.statusCode()).isEqualTo(200);
             assertThat(readiness.body()).contains("\"database\":\"UP\"");
             assertThat(platform.statusCode()).isEqualTo(200);
-            assertThat(platform.body()).contains("\"phase\":\"PHASE_5\"");
+            assertThat(platform.body()).contains("\"phase\":\"PHASE_6\"");
             assertThat(platform.headers().firstValue("X-Request-ID")).contains(requestId);
             assertThat(openApi.statusCode()).isEqualTo(200);
-            assertThat(openApi.body()).contains("/api/v1/platform/info", "/api/v1/forms", "/api/v1/form-responses/{stepId}/review");
+            assertThat(openApi.body()).contains("/api/v1/platform/info", "/api/v1/forms", "/api/v1/form-responses/{stepId}/review",
+                    "/api/v1/asset-requirements", "/api/v1/asset-responses/{stepId}/review",
+                    "/api/v1/client-portal/projects/{projectId}/assets/{stepId}/upload-url");
         }
     }
 

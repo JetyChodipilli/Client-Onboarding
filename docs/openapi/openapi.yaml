@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: Client Onboarding Platform API
-  version: 0.6.0-phase-5
+  version: 0.7.0-phase-6
   description: >-
-    Identity, tenant-scoped client/project core, workflow engine, invitations, client portal and versioned forms.
+    Identity, tenant-scoped client/project core, workflow engine, invitations, client portal, versioned forms and secure asset management.
     Invalid URL parameters return 400 VALIDATION_FAILED. Authenticated unknown routes return
     404 RESOURCE_NOT_FOUND; unsupported methods return 405 METHOD_NOT_ALLOWED and unsupported
     request media types return 415 UNSUPPORTED_MEDIA_TYPE using the standard error envelope.
@@ -21,6 +21,7 @@ tags:
   - name: Onboarding
   - name: Client Portal
   - name: Forms
+  - name: Assets
   - name: Foundation
 paths:
   /api/v1/auth/csrf:
@@ -1375,6 +1376,684 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/FormAnswersRequest'
+  /api/v1/asset-requirements:
+    get:
+      tags:
+      - Assets
+      summary: List active asset requirements
+      description: ASSET_READ, ASSET_MANAGE or ASSET_REVIEW; tenant-scoped bounded search.
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 50
+      - name: search
+        in: query
+        schema:
+          type: string
+          maxLength: 180
+      responses:
+        '200':
+          description: Standard success envelope; meta contains pagination for lists.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/SuccessEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/AssetRequirement'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+    post:
+      tags:
+      - Assets
+      summary: Create an immutable asset requirement
+      description: ASSET_MANAGE and MFA. Content cannot be edited; create a new requirement to change constraints.
+      security:
+      - cookieAuth: []
+      parameters:
+      - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetRequirementRequest'
+      responses:
+        '201':
+          description: Standard success envelope; meta contains pagination for lists.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/SuccessEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AssetRequirement'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /api/v1/asset-requirements/{id}/archive:
+    post:
+      tags:
+      - Assets
+      summary: Archive an asset requirement
+      description: ASSET_MANAGE and MFA. Existing bound snapshots and files remain available.
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/CsrfHeader'
+      - name: version
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      responses:
+        '200':
+          description: Standard success envelope; meta contains pagination for lists.
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /api/v1/asset-responses/{stepId}:
+    get:
+      tags:
+      - Assets
+      summary: Read file collection status
+      description: ASSET_READ or ASSET_REVIEW.
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: stepId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Standard success envelope; meta contains pagination for lists.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/SuccessEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AssetView'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /api/v1/asset-responses/{stepId}/versions:
+    get:
+      tags:
+      - Assets
+      summary: List immutable file versions and review history
+      description: ASSET_READ or ASSET_REVIEW.
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: stepId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+      responses:
+        '200':
+          description: Standard success envelope; meta contains pagination for lists.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/SuccessEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/AssetVersion'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /api/v1/asset-responses/{stepId}/versions/{fileId}/download:
+    post:
+      tags:
+      - Assets
+      summary: Authorize an exact-version file download
+      description: ASSET_READ or ASSET_REVIEW. Only CLEAN scanned versions are downloadable, even when a newer replacement
+        exists.
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: stepId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: Standard success envelope; meta contains pagination for lists.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/SuccessEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AssetSignedUrl'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /api/v1/client-portal/projects/{projectId}/assets/{stepId}:
+    get:
+      tags:
+      - Assets
+      summary: Read file collection status
+      description: Client-only CLIENT_PORTAL_READ, explicit project grant, visible/applicable step and assignment.
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: stepId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Standard success envelope; meta contains pagination for lists.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/SuccessEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AssetView'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /api/v1/client-portal/projects/{projectId}/assets/{stepId}/versions:
+    get:
+      tags:
+      - Assets
+      summary: List immutable file versions and review history
+      description: Client-only CLIENT_PORTAL_READ, explicit project grant, visible/applicable step and assignment.
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: stepId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 10
+      responses:
+        '200':
+          description: Standard success envelope; meta contains pagination for lists.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/SuccessEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/AssetVersion'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /api/v1/client-portal/projects/{projectId}/assets/{stepId}/versions/{fileId}/download:
+    post:
+      tags:
+      - Assets
+      summary: Authorize an exact-version file download
+      description: Client-only CLIENT_PORTAL_READ, explicit project grant, visible/applicable step and assignment.
+        Only CLEAN scanned versions are downloadable, even when a newer replacement exists.
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: stepId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: Standard success envelope; meta contains pagination for lists.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/SuccessEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AssetSignedUrl'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /api/v1/client-portal/projects/{projectId}/assets/{stepId}/upload-url:
+    post:
+      tags:
+      - Assets
+      summary: Create a replacement version and sign its upload
+      description: CLIENT_PORTAL_STEP_UPDATE. Requires active project/onboarding and an editable step. Supply current
+        aggregate version, then PUT file bytes to the returned URL with returned headers. The signature binds MIME,
+        size, hash metadata and If-None-Match; validation occurs during submission.
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: stepId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetUploadRequest'
+      responses:
+        '200':
+          description: Standard success envelope; meta contains pagination for lists.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/SuccessEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AssetUpload'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /api/v1/client-portal/projects/{projectId}/assets/{stepId}/submit:
+    post:
+      tags:
+      - Assets
+      summary: Validate, scan and submit the uploaded file
+      description: CLIENT_PORTAL_STEP_UPDATE. Claim a bounded scan lease; read and scan the pinned object version
+        outside the transaction. CLEAN files become SUBMITTED or auto-approved when review is not required. INFECTED
+        files become QUARANTINED, invalid bytes REJECTED, scanner errors UPLOADED/ERROR for retry. Returns the updated
+        aggregate version.
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: stepId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VersionRequest'
+      responses:
+        '200':
+          description: Standard success envelope; meta contains pagination for lists.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/SuccessEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AssetView'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /api/v1/asset-responses/{stepId}/review:
+    post:
+      tags:
+      - Assets
+      summary: Review the current clean file
+      description: ASSET_REVIEW and MFA. Revision requires nonblank feedback. Approval completes the workflow step
+        and recalculates readiness atomically.
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: stepId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetReviewRequest'
+      responses:
+        '200':
+          description: Standard success envelope; meta contains pagination for lists.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/SuccessEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AssetView'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /api/v1/asset-responses/{stepId}/skip:
+    post:
+      tags:
+      - Assets
+      summary: Skip an asset step
+      description: ASSET_REVIEW and MFA. Requires nonblank reason and snapshot permission; blocking steps cannot be
+        skipped.
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: stepId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormExceptionRequest'
+      responses:
+        '200':
+          description: Standard success envelope; meta contains pagination for lists.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/SuccessEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AssetView'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
+  /api/v1/asset-responses/{stepId}/reopen:
+    post:
+      tags:
+      - Assets
+      summary: Reopen an asset step
+      description: ASSET_REVIEW and MFA. Requires nonblank reason and snapshot permission; blocking steps cannot be
+        skipped.
+      security:
+      - cookieAuth: []
+      parameters:
+      - name: stepId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FormExceptionRequest'
+      responses:
+        '200':
+          description: Standard success envelope; meta contains pagination for lists.
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/SuccessEnvelope'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/AssetView'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '403':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          $ref: '#/components/responses/Error'
+        '503':
+          $ref: '#/components/responses/Error'
 components:
   securitySchemes:
     cookieAuth:
@@ -1755,3 +2434,350 @@ components:
           type: string
           minLength: 1
           maxLength: 2000
+    AssetRequirementRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - name
+      - allowedMimes
+      - maxBytes
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 180
+        instructions:
+          type: string
+          maxLength: 2000
+        allowedMimes:
+          type: array
+          minItems: 1
+          maxItems: 7
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+            - image/png
+            - image/jpeg
+            - image/gif
+            - image/webp
+            - application/pdf
+            - text/plain
+            - video/mp4
+        maxBytes:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 52428800
+    AssetUploadRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - filename
+      - mime
+      - byteSize
+      - sha256
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+        filename:
+          type: string
+          minLength: 1
+          maxLength: 500
+        mime:
+          type: string
+          enum:
+          - image/png
+          - image/jpeg
+          - image/gif
+          - image/webp
+          - application/pdf
+          - text/plain
+          - video/mp4
+        byteSize:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 52428800
+        sha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+    AssetReviewRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      - decision
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+        decision:
+          type: string
+          enum:
+          - UNDER_REVIEW
+          - NEEDS_REVISION
+          - APPROVED
+        note:
+          type: string
+          maxLength: 2000
+    AssetRequirement:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - organizationId
+      - name
+      - allowedMimes
+      - maxBytes
+      - createdAt
+      - version
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 180
+        instructions:
+          type: string
+          maxLength: 2000
+        allowedMimes:
+          type: array
+          minItems: 1
+          maxItems: 7
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+            - image/png
+            - image/jpeg
+            - image/gif
+            - image/webp
+            - application/pdf
+            - text/plain
+            - video/mp4
+        maxBytes:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 52428800
+        id:
+          type: string
+          format: uuid
+        organizationId:
+          type: string
+          format: uuid
+        archivedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+    AssetFile:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - versionNumber
+      - filename
+      - mime
+      - byteSize
+      - status
+      - scanStatus
+      - scanMessage
+      - reviewNote
+      - createdAt
+      - downloadable
+      properties:
+        id:
+          type: string
+          format: uuid
+        versionNumber:
+          type: integer
+          minimum: 1
+        filename:
+          type: string
+        mime:
+          type: string
+          enum:
+          - image/png
+          - image/jpeg
+          - image/gif
+          - image/webp
+          - application/pdf
+          - text/plain
+          - video/mp4
+        byteSize:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 52428800
+        status:
+          type: string
+          enum:
+          - REQUESTED
+          - UPLOADED
+          - SCANNING
+          - SUBMITTED
+          - UNDER_REVIEW
+          - APPROVED
+          - NEEDS_REVISION
+          - REPLACED
+          - QUARANTINED
+          - REJECTED
+        scanStatus:
+          type: string
+          enum:
+          - PENDING
+          - SCANNING
+          - CLEAN
+          - INFECTED
+          - ERROR
+        scanMessage:
+          type:
+          - string
+          - 'null'
+        reviewNote:
+          type:
+          - string
+          - 'null'
+        createdAt:
+          type: string
+          format: date-time
+        downloadable:
+          type: boolean
+    AssetView:
+      type: object
+      additionalProperties: false
+      required:
+      - projectId
+      - stepId
+      - stepName
+      - stepStatus
+      - projectStatus
+      - onboardingStatus
+      - deadline
+      - allowSkip
+      - allowReopen
+      - requirement
+      - version
+      - current
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        stepId:
+          type: string
+          format: uuid
+        stepName:
+          type: string
+        stepStatus:
+          type: string
+        projectStatus:
+          type: string
+        onboardingStatus:
+          type: string
+        deadline:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        allowSkip:
+          type: boolean
+        allowReopen:
+          type: boolean
+        requirement:
+          $ref: '#/components/schemas/AssetRequirement'
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+        current:
+          anyOf:
+          - $ref: '#/components/schemas/AssetFile'
+          - type: 'null'
+    AssetSignedUrl:
+      type: object
+      additionalProperties: false
+      required:
+      - url
+      - method
+      - headers
+      - expiresAt
+      properties:
+        url:
+          type: string
+          format: uri
+        method:
+          type: string
+          enum:
+          - PUT
+          - GET
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+      description: Use all returned headers exactly. Browser supplies Content-Length automatically. PUT expires in 600
+        seconds and is single-write; GET expires in 60 seconds, requires no cookies and forces attachment delivery.
+        Do not log or cache signed URLs.
+    AssetUpload:
+      type: object
+      additionalProperties: false
+      required:
+      - asset
+      - upload
+      properties:
+        asset:
+          $ref: '#/components/schemas/AssetView'
+        upload:
+          $ref: '#/components/schemas/AssetSignedUrl'
+    AssetVersion:
+      type: object
+      additionalProperties: false
+      required:
+      - file
+      - reviews
+      properties:
+        file:
+          $ref: '#/components/schemas/AssetFile'
+        reviews:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - decision
+            - note
+            - createdAt
+            - createdBy
+            properties:
+              decision:
+                type: string
+                enum:
+                - UNDER_REVIEW
+                - APPROVED
+                - NEEDS_REVISION
+                - REOPENED
+                - SKIPPED
+              note:
+                type:
+                - string
+                - 'null'
+              createdAt:
+                type: string
+                format: date-time
+              createdBy:
+                type: string
+                format: uuid
