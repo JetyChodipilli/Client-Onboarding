@@ -3,7 +3,10 @@ name: ${COMPOSE_PROJECT_NAME:-client-onboarding}
 services:
   # Private local S3 emulator. Production uses a maintained, private, versioned S3 service.
   storage:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: client-onboarding-storage:phase6
+    build:
+      context: ./infra/assets
+      dockerfile: Dockerfile.storage
     command: server /data
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-local-storage-admin}
@@ -21,7 +24,10 @@ services:
     security_opt:
       - no-new-privileges:true
   storage-init:
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    image: client-onboarding-storage-client:phase6
+    build:
+      context: ./infra/assets
+      dockerfile: Dockerfile.client
     entrypoint: ["/bin/sh", "/init/init-storage.sh"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-local-storage-admin}

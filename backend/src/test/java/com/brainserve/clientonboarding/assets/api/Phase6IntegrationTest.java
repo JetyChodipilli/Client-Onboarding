@@ -51,6 +51,7 @@ class Phase6IntegrationTest {
         var permissions=Set.of("CLIENT_CREATE","CLIENT_UPDATE","CLIENT_READ","PROJECT_CREATE","PROJECT_READ","PROJECT_UPDATE","SERVICE_MANAGE","WORKFLOW_MANAGE","WORKFLOW_READ","ONBOARDING_START","ONBOARDING_INVITE","ONBOARDING_REVIEW","ASSET_READ","ASSET_MANAGE","ASSET_REVIEW");
         admin=internal(org,permissions);foreign=internal(foreignOrg,permissions);reader=internal(org,Set.of("ASSET_READ"));
         store.reset();
+        scanner.started=null;scanner.resume=null;
         requirement=data(postJson("/asset-requirements",admin,Map.of("name","Brand file","instructions","Provide a safe brand document.","allowedMimes",List.of("text/plain","application/pdf"),"maxBytes",4096)).andExpect(status().isCreated())).get("id").asText();
         String company=data(postJson("/clients",admin,Map.of("name","Client","status","ACTIVE","version",0)).andExpect(status().isCreated())).get("id").asText();
         String contact=data(postJson("/clients/"+company+"/contacts",admin,Map.of("name","Ada","email","client-"+org+"@example.test","primary",true,"version",0)).andExpect(status().isCreated())).get("id").asText();
@@ -89,6 +90,8 @@ class Phase6IntegrationTest {
         getJson(portalPath+"/versions",client).andExpect(jsonPath("$.data.length()").value(2)).andExpect(jsonPath("$.data[1].file.status").value("REPLACED")).andExpect(jsonPath("$.data[1].reviews.length()").value(2));
         postJson(portalPath+"/versions/"+first+"/download",client,Map.of()).andExpect(status().isOk());
         assertThat(store.downloadedVersion).isEqualTo("version-1");
+        postJson("/asset-responses/"+step+"/versions/"+first+"/download",foreign,Map.of()).andExpect(status().isNotFound());
+        postJson("/client-portal/projects/"+UUID.randomUUID()+"/assets/"+step+"/versions/"+first+"/download",client,Map.of()).andExpect(status().isNotFound());
         assertThatThrownBy(()->jdbc.sql("UPDATE asset_versions SET object_version_id='tampered' WHERE organization_id=?").param(org).update()).isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
         assertThatThrownBy(()->jdbc.sql("DELETE FROM asset_reviews WHERE organization_id=?").param(org).update()).isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
         assertThat(jdbc.sql("SELECT count(*) FROM asset_outbox_events WHERE organization_id=? AND event_type='ASSET_APPROVED'").param(org).query(Long.class).single()).isEqualTo(1);
@@ -154,6 +157,22 @@ class Phase6IntegrationTest {
         scanner.fail=false;submit(3).andExpect(status().isOk()).andExpect(jsonPath("$.data.current.status").value("SUBMITTED"));
         assertThat(store.inspectedVersion).isEqualTo("version-1");
     }
+    @Test void projectHoldDuringScanPreventsCompletionAndDownload() throws Exception {
+        scanner.fail=false;scanner.infected=false;upload(0,"Safe but held file").andExpect(status().isOk());
+        scanner.started=new java.util.concurrent.CountDownLatch(1);scanner.resume=new java.util.concurrent.CountDownLatch(1);
+        var pool=java.util.concurrent.Executors.newSingleThreadExecutor();
+        try {
+            var result=pool.submit(()->submit(1).andReturn().getResponse().getStatus());
+            assertThat(scanner.started.await(10,java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            jdbc.sql("UPDATE projects SET status='ON_HOLD' WHERE organization_id=? AND id=?").params(org,UUID.fromString(project)).update();
+            scanner.resume.countDown();
+            assertThat(result.get(10,java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(409);
+            String id=data(getJson(portalPath,client)).at("/current/id").asText();
+            postJson(portalPath+"/versions/"+id+"/download",client,Map.of()).andExpect(status().isConflict());
+            getJson("/onboardings/"+onboarding,admin).andExpect(jsonPath("$.data.onboarding.ready").value(false));
+            assertThat(jdbc.sql("SELECT count(*) FROM asset_outbox_events WHERE organization_id=? AND event_type IN ('ASSET_UPLOADED','ASSET_APPROVED')").param(org).query(Long.class).single()).isZero();
+        }finally{scanner.resume.countDown();pool.shutdownNow();}
+    }
     @Test void noReviewAutoCompletesOnlyAfterSafeScanAndSkipReopenHonorRules() throws Exception {
         scanner.fail=false;scanner.infected=false;
         postJson("/asset-responses/"+step+"/skip",admin,Map.of("version",0,"note","Skip")).andExpect(status().isConflict());
@@ -184,7 +203,11 @@ class Phase6IntegrationTest {
     }
     static class FakeScanner implements com.brainserve.clientonboarding.assets.application.MalwareScanner {
         boolean fail,infected;
-        public Verdict scan(java.nio.file.Path file)throws java.io.IOException{if(fail)throw new java.io.IOException("Scanner unavailable");return infected?Verdict.INFECTED:Verdict.CLEAN;}
+        java.util.concurrent.CountDownLatch started,resume;
+        public Verdict scan(java.nio.file.Path file)throws java.io.IOException{
+            if(started!=null){started.countDown();try{if(!resume.await(15,java.util.concurrent.TimeUnit.SECONDS))throw new java.io.IOException("Test scan gate timed out");}catch(InterruptedException e){Thread.currentThread().interrupt();throw new java.io.IOException(e);}}
+            if(fail)throw new java.io.IOException("Scanner unavailable");return infected?Verdict.INFECTED:Verdict.CLEAN;
+        }
     }
     ResultActions review(long version,String decision,String note) throws Exception { return postJson("/asset-responses/"+step+"/review",admin,Map.of("version",version,"decision",decision,"note",note)); }
     ResultActions postJson(String path,Cookie cookie,Object body) throws Exception { var r=post("/api/v1"+path).with(csrf()).contentType("application/json").content(json.writeValueAsString(body));if(cookie!=null)r.cookie(cookie);return mvc.perform(r); }

@@ -11,7 +11,7 @@ Read `docs/Client_Onboarding_PRD_SDLC_Implementation_Ready.docx` before changing
 - Before implementation, inspect the current code, module map, ADRs and phase report.
 - A feature is incomplete without validation, authorization, tenant-isolation, error-case and documentation coverage appropriate to its phase.
 - Never mark a placeholder, fake provider, permissive security shortcut or TODO-based critical path as production-ready.
-- Current implemented boundary: Phase 5. Do not introduce assets, billing, contracts, access
+- Current implemented boundary: Phase 6. Do not introduce billing, contracts, access
   collection, generic notification/reminder infrastructure, activation, or reporting without an
   explicit request for the corresponding later phase.
 
@@ -113,3 +113,16 @@ Before phase completion:
 - Generic workflow transitions cannot mutate FORM steps. Dedicated skip/reopen actions honor snapshot rules.
 - FORM_MANAGE and FORM_REVIEW require MFA. Do not log answers or include answers in audit/outbox metadata.
 - File fields require Phase 6 security controls and are not supported here; event delivery waits for Phase 10.
+
+## Phase 6 asset invariants
+
+- FILE_UPLOAD steps pin immutable tenant-owned requirements; collect files in dedicated steps, not form answers.
+- Storage buckets are private and versioned. Upload signatures bind size, MIME, hash metadata and a one-write condition.
+- Pin the exact provider object version before reading. Validate actual bytes, SHA-256 and MIME, then scan with ClamAV.
+- Unscanned, rejected and quarantined files never receive download URLs or complete workflow steps.
+- Scan I/O runs outside database transactions; claim and completion use short leases, project locks and state rechecks.
+- Upload, scan-result, review, readiness, audit and outbox mutations use optimistic versions and atomic transactions.
+- Generic workflow transitions cannot mutate FILE_UPLOAD steps. Review/skip/reopen require ASSET_REVIEW and MFA.
+- Downloads recheck tenant/project/assignment access and expire in 60 seconds. Never expose public bucket access.
+- Existing organizations explicitly assign new permissions. Do not auto-elevate existing roles.
+- The user authorized pushing and merging each phase into main after all required checks pass; stop before the next phase.

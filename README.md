@@ -4,7 +4,7 @@ A multi-tenant B2B onboarding system built as a **Spring Boot modular monolith**
 
 I kept this as one deployable backend on purpose. The hard part here is not service-to-service networking; it is keeping identity, tenancy, projects, workflow definitions, workflow execution, and audit history consistent while the product is still evolving.
 
-This branch implements **Phase 5 — Forms & Questionnaires**. The phase report records its verification and delivery status.
+This branch implements **Phase 6 — Asset Management**. The phase report records its verification and delivery status.
 
 ## Why a modular monolith
 
@@ -81,7 +81,22 @@ Reviewers open **View questionnaire** from the internal project page.
 
 Existing organizations must assign `FORM_READ`, `FORM_MANAGE`, and/or `FORM_REVIEW` through Settings → Roles.
 Manage/review permissions require MFA. Flyway applies `V7__forms_and_questionnaires.sql` without
-changing V1–V6. Files/uploads remain Phase 6; Phase 10 adds delivery of the durable form events.
+changing V1–V6. Files are collected through dedicated asset steps; Phase 10 adds delivery of durable events.
+
+### Phase 6 — asset management
+
+- immutable file requirements, private presigned uploads and replacement versions
+- authoritative size, SHA-256 and MIME validation, followed by real ClamAV scanning
+- review, revision, approval and atomic workflow/readiness updates
+- authorized downloads of the exact scanned object version and immutable review history
+
+Open **Assets**, create a requirement, and select it on a FILE_UPLOAD step in Workflows. Clients upload
+from their project portal; reviewers follow the file link on the internal project. Each step collects
+one file with replacement versions. Use multiple steps for multiple required files.
+
+Assign `ASSET_READ`, `ASSET_MANAGE` and/or the existing `ASSET_REVIEW` permission through Settings → Roles.
+Manage/review require MFA. Migration `V8__asset_management.sql` adds the asset tables without rewriting
+V1–V7. Supported types are PNG, JPEG, GIF, WebP, PDF, plain text and MP4, with a maximum of 50 MiB per file.
 
 ## The workflow decision that matters most
 
@@ -136,6 +151,18 @@ Configure the SMTP values in `.env.example` before sending invitations. For an e
 assign `ONBOARDING_INVITE` to the appropriate internal role in role settings; it requires MFA.
 Clients receive access only to projects explicitly granted through accepted invitations.
 
+Compose also starts private development S3 storage, a one-shot bucket/credential initializer and ClamAV.
+Allow several minutes and at least 4 GiB of memory for the scanner. Storage binds to loopback port 9000;
+the scanner binds to loopback port 3310. Replace development credentials before using shared infrastructure.
+The initializer enables versioning, disables anonymous access and grants the application only the required
+bucket-versioning and object read/write permissions. Production must use a maintained private S3-compatible
+service, TLS, fresh scanner signatures and operator-managed retention; the bundled MinIO image is a test fixture.
+
+`NEXT_PUBLIC_ASSET_STORAGE_ORIGIN` is the browser-visible storage origin and is embedded into the frontend
+CSP at build time. It must match `ASSET_STORAGE_PUBLIC_ENDPOINT`; rebuild the frontend after changing it.
+Storage CORS must allow the exact frontend origin, PUT and the returned signed headers. Never broaden it to `*`.
+See [asset architecture and rollout](docs/architecture/phase-6-assets.md) for scan retries and production setup.
+
 ## Verification
 
 Backend:
@@ -158,14 +185,14 @@ npx playwright install --with-deps chromium
 npm run test:e2e
 ```
 
-Full Phase 5 gate:
+Full Phase 6 gate:
 
 ```bash
-LIVE_BACKEND=1 ./scripts/verify-phase-5.sh
+LIVE_BACKEND=1 ./scripts/verify-phase-6.sh
 ```
 
 The local gate requires a fresh running bootstrap backend configured like the CI browser job,
-Chromium, Docker and a free loopback SMTP port 1025. CI provisions these prerequisites and also
+Chromium, Docker, private versioned storage, ClamAV and a free loopback SMTP port 1025. CI provisions these prerequisites and also
 verifies clean Compose startup and logs. The script refuses to silently skip the live browser scenario.
 
 The cross-phase audit passed backend, frontend, PostgreSQL / Chromium, and production-container gates in [GitHub Actions run 35849125306](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/35849125306): 55 backend tests, 12 frontend unit tests and 89 browser scenarios passed. Three repeated bootstrap scenarios are intentionally skipped outside the desktop run. Final merge checks are recorded in [PR #26](https://github.com/JetyChodipilli/Client-Onboarding/pull/26).
@@ -187,11 +214,13 @@ scripts/              Reproducible verification gates
 
 ## Current boundary
 
-Implementation stops at Phase 5. Assets, payments, contracts and later phases remain outside the current scope.
+Implementation stops at Phase 6. Payments, contracts and later phases remain outside the current scope.
 
 Phase 5 validation: 69 backend tests, 16 frontend tests, the responsive browser suite, clean PostgreSQL migrations and production-container startup passed. Detailed evidence and the disclosed browser-selector correction are in the phase report and [PR #27](https://github.com/JetyChodipilli/Client-Onboarding/pull/27).
 
 Phase 5: [architecture and rollout](docs/architecture/phase-5-forms-questionnaires.md) · [phase report](docs/phase-reports/phase-5.md).
+
+Phase 6: [architecture and rollout](docs/architecture/phase-6-assets.md) · [phase report](docs/phase-reports/phase-6.md).
 
 Phase 4 architecture: [client invitation and portal](docs/architecture/phase-4-client-invitation-portal.md).
 Cross-phase audit: [Phases 0–4 debug review](docs/phase-reports/phases-0-4-debug-audit.md).

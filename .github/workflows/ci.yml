@@ -87,7 +87,7 @@ jobs:
         env:
           CLAMAV_NO_FRESHCLAMD: "true"
           CORS_ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
-        run: docker compose up --wait --wait-timeout 300 storage storage-init scanner
+        run: docker compose up --build --wait --wait-timeout 300 storage storage-init scanner
       - name: Start Phase 6 backend
         working-directory: backend
         env:
@@ -172,6 +172,7 @@ jobs:
           CLAMAV_NO_FRESHCLAMD: "true"
         run: |
           docker compose config --quiet
+          docker compose build storage storage-init
           docker compose up --no-build --wait --wait-timeout 360
           curl --fail http://localhost:8080/health/ready
           curl --fail http://localhost:3000/client/login > /dev/null

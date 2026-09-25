@@ -1,0 +1,10 @@
+# Bucket bootstrap client; never used by the application at runtime.
+FROM golang:1.26-alpine AS build
+RUN CGO_ENABLED=0 go install -trimpath github.com/minio/mc@RELEASE.2025-08-13T08-35-41Z
+RUN cp /go/pkg/mod/github.com/minio/mc@*/LICENSE /tmp/LICENSE
+
+FROM alpine:3.23
+RUN apk add --no-cache ca-certificates
+COPY --from=build /go/bin/mc /usr/local/bin/mc
+COPY --from=build /tmp/LICENSE /usr/share/licenses/mc/LICENSE
+ENTRYPOINT ["mc"]

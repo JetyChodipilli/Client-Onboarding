@@ -10,7 +10,8 @@ import org.junit.jupiter.api.*;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.*;
-import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.images.builder.ImageFromDockerfile;
+import java.nio.file.Path;
 import software.amazon.awssdk.auth.credentials.*;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
@@ -21,7 +22,8 @@ import com.brainserve.clientonboarding.common.error.DomainException;
 
 @Testcontainers(disabledWithoutDocker=true)
 class S3AssetStorageTest {
-    @Container static final GenericContainer<?> S3=new GenericContainer<>(DockerImageName.parse("quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z"))
+    @Container static final GenericContainer<?> S3=new GenericContainer<>(new ImageFromDockerfile()
+            .withFileFromPath("Dockerfile",Path.of("../infra/assets/Dockerfile.storage")))
             .withEnv("MINIO_ROOT_USER","test-storage-user").withEnv("MINIO_ROOT_PASSWORD","test-storage-password")
             .withCommand("server","/data").withExposedPorts(9000)
             .waitingFor(Wait.forHttp("/minio/health/live").forPort(9000)).withStartupTimeout(Duration.ofMinutes(2));
