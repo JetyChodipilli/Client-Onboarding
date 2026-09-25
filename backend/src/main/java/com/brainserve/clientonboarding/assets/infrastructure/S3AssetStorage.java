@@ -44,9 +44,9 @@ public class S3AssetStorage implements AssetStorage {
     public SignedUrl upload(String key,String mime,long size,String sha256) {
         requireStorage();
         var signed=signer.presignPutObject(PutObjectPresignRequest.builder().signatureDuration(Duration.ofMinutes(10))
-                .putObjectRequest(PutObjectRequest.builder().bucket(settings.getBucket()).key(key).contentType(mime).contentLength(size).metadata(Map.of("sha256",sha256)).build()).build());
+                .putObjectRequest(PutObjectRequest.builder().bucket(settings.getBucket()).key(key).contentType(mime).contentLength(size).ifNoneMatch("*").metadata(Map.of("sha256",sha256)).build()).build());
         // Content-Length is supplied automatically by the browser, but must remain signed.
-        if(!signed.signedHeaders().containsKey("content-length")) throw new IllegalStateException("Storage signer did not bind upload length");
+        if(!signed.signedHeaders().containsKey("content-length")||!signed.signedHeaders().containsKey("if-none-match")) throw new IllegalStateException("Storage signer did not bind upload length and single-write condition");
         return new SignedUrl(signed.url().toString(),"PUT",signed.signedHeaders().entrySet().stream().filter(e->!java.util.Set.of("host","content-length").contains(e.getKey())).collect(Collectors.toMap(Map.Entry::getKey,e->String.join(",",e.getValue()))),Instant.now().plusSeconds(600));
     }
     public StoredObject inspect(String key,String versionId) {

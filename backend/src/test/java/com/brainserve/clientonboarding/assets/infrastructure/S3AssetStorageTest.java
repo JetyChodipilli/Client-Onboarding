@@ -21,7 +21,7 @@ import com.brainserve.clientonboarding.common.error.DomainException;
 
 @Testcontainers(disabledWithoutDocker=true)
 class S3AssetStorageTest {
-    @Container static final GenericContainer<?> S3=new GenericContainer<>(DockerImageName.parse("minio/minio:RELEASE.2025-09-07T16-13-09Z"))
+    @Container static final GenericContainer<?> S3=new GenericContainer<>(DockerImageName.parse("quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z"))
             .withEnv("MINIO_ROOT_USER","test-storage-user").withEnv("MINIO_ROOT_PASSWORD","test-storage-password")
             .withCommand("server","/data").withExposedPorts(9000)
             .waitingFor(Wait.forHttp("/minio/health/live").forPort(9000)).withStartupTimeout(Duration.ofMinutes(2));
@@ -40,7 +40,9 @@ class S3AssetStorageTest {
         var signed=storage.upload(key,"text/plain",original.length,"a".repeat(64));
         assertThat(put(signed,original,null).statusCode()).isEqualTo(200);
         var first=storage.inspect(key,null);assertThat(first.versionId()).isNotBlank();assertThat(first.size()).isEqualTo(original.length);
-        assertThat(put(signed,"changed bytes".getBytes(StandardCharsets.UTF_8),null).statusCode()).isEqualTo(200);
+        assertThat(put(signed,"changed bytes".getBytes(StandardCharsets.UTF_8),null).statusCode()).isEqualTo(412);
+        // Even a privileged storage-side overwrite cannot change the file selected by its immutable version ID.
+        admin.putObject(b->b.bucket("asset-test").key(key),software.amazon.awssdk.core.sync.RequestBody.fromString("changed bytes"));
         assertThat(storage.inspect(key,null).versionId()).isNotEqualTo(first.versionId());
         assertThat(put(signed,original,"application/pdf").statusCode()).isEqualTo(403);
         assertThat(put(signed,"short".getBytes(StandardCharsets.UTF_8),null).statusCode()).isEqualTo(403);
