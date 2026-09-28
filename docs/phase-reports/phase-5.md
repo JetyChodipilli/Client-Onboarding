@@ -135,3 +135,10 @@ see PR #27 for that exact revision's results.
 
 See also the [architecture/rollout notes](../architecture/phase-5-forms-questionnaires.md) and
 [UI/Ponytail review](phase-5-design-audit.md).
+
+## Delivery addendum
+
+PR #27 was subsequently merged into main as `a622a5c6c75933135810b3544afe854139eda736`.
+[Post-merge CI run 35978806221](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/35978806221)
+completed successfully. This supersedes the pre-merge delivery wording above; the implementation report
+and its historical verification sequence are retained.

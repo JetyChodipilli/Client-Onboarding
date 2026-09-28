@@ -31,7 +31,8 @@ reference only the pinned object version, force attachment/octet-stream delivery
 an anonymous bucket. Quarantined/rejected/unscanned objects cannot receive a download URL. Reusing
 an upload URL after scanning cannot replace the version that reviewers and clients download.
 
-Development uses private MinIO and ClamAV services. Production must provision a private, versioned
+Development uses private MinIO and ClamAV services. MinIO and its bootstrap client are built from
+pinned official source releases, including the October 2025 server security release; registry images are not required. Production must provision a private, versioned
 bucket, restricted credentials, TLS storage endpoints, trusted-network scanner access, fresh malware
 signatures, and lifecycle/retention rules. Disabling storage disables file operations with a controlled
 error; there is no permissive scanner fallback. Existing snapshots without assetRequirementId need
