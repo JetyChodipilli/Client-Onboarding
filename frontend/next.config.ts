@@ -29,6 +29,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Keep development-only controls out of the product's keyboard order in browser tests.
+  // Next.js still surfaces compile and runtime errors with the indicator disabled.
+  devIndicators: false,
   poweredByHeader: false,
   reactStrictMode: true,
   async headers() {

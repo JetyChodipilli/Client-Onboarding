@@ -16,6 +16,8 @@ management remains a small feature folder; there is no generic file-manager fram
 - Distinguish completed onboarding awaiting internal review from paused or closed work.
 - Replace offscreen translated skip links with screen-reader-only hiding and a visible keyboard-focus state;
   full-page captures had exposed the translated links over scrolled content. Verify keyboard entry into the portal.
+- Disable the Next.js development indicator, which the failure trace showed receiving the first Tab press
+  before product navigation. Compile/runtime errors still surface; the keyboard assertion remains unchanged.
 - Update stale Phase 4/5 labels on the foundation page and API metadata to Phase 6.
 
 ## Validation

@@ -138,5 +138,10 @@ YES — after the final PR checks and merge. Do not start Phase 7 automatically.
   or unexplained application ERROR entries occurred.
 - Artifact `phase-6-browser-evidence` from that run contains responsive screenshots and the Playwright report.
   Final revision checks, including the screenshot-driven skip-link correction, are attached to PR #28.
+- Run 36418446205 passed backend, frontend and container checks plus 125 browser scenarios. The four new
+  keyboard assertions exposed the Next.js development indicator taking first focus. The failure screenshot
+  confirmed focus on that toolbar; disabling the supported `devIndicators` option removes development-only
+  controls from the product tab order without suppressing errors or weakening the assertion. All checks
+  are rerun on the corrected revision before merge.
 
 See [architecture/rollout](../architecture/phase-6-assets.md) and [design/Ponytail review](phase-6-design-audit.md).
