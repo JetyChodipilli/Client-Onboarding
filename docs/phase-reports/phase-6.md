@@ -2,8 +2,9 @@
 
 PHASE COMPLETED:
 
-Implementation complete; verification in progress. Do not merge until the real storage, browser and
-container gates pass. Delivery targets main through [PR #28](https://github.com/JetyChodipilli/Client-Onboarding/pull/28).
+Phase 6 — Asset Management. Backend, frontend, real storage, browser and container gates passed on the
+implementation revision below. Delivery is through [PR #28](https://github.com/JetyChodipilli/Client-Onboarding/pull/28),
+whose final revision must pass the same checks before merge into main.
 Phase 7 has not started.
 
 IMPLEMENTED:
@@ -24,7 +25,7 @@ DATABASE MIGRATIONS:
 - Composite tenant foreign keys, current-version ownership, unique version numbers, optimistic versions,
   immutable requirement/file identity and object-version pinning, append-only review history.
 - ASSET_READ and ASSET_MANAGE added; ASSET_REVIEW reuses the existing permission seeded by V2.
-- Clean PostgreSQL migration through V8 passes in the backend tests; final revision must pass the same gate.
+- Clean PostgreSQL migration through V8 and production Compose startup pass.
 
 API ENDPOINTS:
 
@@ -64,7 +65,10 @@ PLAYWRIGHT SCENARIOS:
   validation/conflict recovery, quarantine, reviewer feedback and catalog/loading/empty/denied states.
 - Full live journey extends MFA, SMTP invitation and questionnaires with real S3 uploads, EICAR quarantine,
   clean-file submission, revision/replacement, approval, exact signed download and 100% progress.
-- Browser execution and screenshot inspection remain pending on this revision. Discovery alone is not a pass.
+- 129 browser scenarios passed with no retries; three duplicate bootstrap scenarios are intentionally skipped
+  outside desktop. Responsive asset scenarios execute in all four viewports.
+- Inspected live approved-file, mobile submission/quarantine, tablet review and landscape requirement captures.
+  Corrected the skip-link hiding style exposed by scrolling and added portal keyboard-navigation coverage.
 
 SECURITY VALIDATION:
 
@@ -103,19 +107,21 @@ real adapter, versions, review/revision/approval, secure download, workflow inte
 
 PRD ITEMS REMAINING:
 
-Final Phase 6 provider/browser/container verification and merge. Phases 7–13 remain outside this implementation.
+Phases 7–13 remain outside this implementation. Embedded questionnaire FILE fields are still unsupported;
+secure files are collected through the dedicated FILE_UPLOAD workflow steps described above.
 
 BUILD STATUS:
 
-PASS on implementation revision 3eedf4836eea8e2d889ec7ce566f3001bf99e20b — backend, frontend and production containers. Final correction checks remain pending.
+PASS — Maven verification, frontend lint/typecheck/production build and both application container builds.
 
 TEST STATUS:
 
-PENDING — 82 backend tests (including real S3), 18 frontend unit tests and clean Compose startup pass. Full browser execution remains required.
+PASS — 82 backend tests with zero skips, 18 frontend unit tests, 129 browser scenarios and clean Compose
+startup. Three duplicate live bootstrap runs are intentionally skipped outside the desktop viewport.
 
 READY FOR NEXT PHASE:
 
-NO — finish verification and merge first; do not start Phase 7 automatically.
+YES — after the final PR checks and merge. Do not start Phase 7 automatically.
 
 ## Verification history
 
@@ -125,6 +131,12 @@ NO — finish verification and merge first; do not start Phase 7 automatically.
 - Run 36092904077 passed backend, frontend and container jobs. Browser setup exposed Compose waiting for
   the one-shot storage initializer to remain running after its successful exit. The browser job now starts
   storage/scanner services, then runs initialization as a separate command with its exit status enforced.
-- Final CI evidence and screenshot review will be recorded before completion.
+- Implementation revision `934df6cc28ecea7d6f3780859c708370c95320e5` passed all four jobs in
+  [CI run 36381813000](https://github.com/JetyChodipilli/Client-Onboarding/actions/runs/36381813000).
+  The live journey detected EICAR using ClamAV, quarantined it, reviewed a safe replacement, requested
+  revision, approved a subsequent version and downloaded the exact expected bytes. No browser retries
+  or unexplained application ERROR entries occurred.
+- Artifact `phase-6-browser-evidence` from that run contains responsive screenshots and the Playwright report.
+  Final revision checks, including the screenshot-driven skip-link correction, are attached to PR #28.
 
-See [architecture/rollout](../architecture/phase-6-assets.md).
+See [architecture/rollout](../architecture/phase-6-assets.md) and [design/Ponytail review](phase-6-design-audit.md).

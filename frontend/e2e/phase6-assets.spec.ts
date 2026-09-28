@@ -30,6 +30,10 @@ test("client uploads with progress, submits and retains file history", async ({ 
   const errors: string[] = []; page.on("pageerror", (e) => errors.push(e.message)); page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
   await mock(page); await page.goto(path);
   await expect(page.getByRole("heading", { name: "Brand document", exact: true })).toBeVisible();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to portal" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#portal-main")).toBeFocused();
   await expect(page.getByRole("button", { name: "Upload and submit file" })).toBeDisabled();
   await page.getByLabel("Choose a file").setInputFiles({ name: "brand.txt", mimeType: "text/plain", buffer: Buffer.from("Our brand file") });
   await page.getByRole("button", { name: "Upload and submit file" }).click();

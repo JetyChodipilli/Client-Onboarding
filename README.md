@@ -220,6 +220,11 @@ Phase 5 validation: 69 backend tests, 16 frontend tests, the responsive browser 
 
 Phase 5: [architecture and rollout](docs/architecture/phase-5-forms-questionnaires.md) · [phase report](docs/phase-reports/phase-5.md).
 
+Phase 6 validation: 82 backend tests, 18 frontend unit tests and 129 browser scenarios passed, including
+real S3, ClamAV quarantine, revision/approval and signed downloads. Clean Compose startup passed.
+Three duplicate bootstrap runs are intentionally skipped outside desktop; final revision checks are on
+[PR #28](https://github.com/JetyChodipilli/Client-Onboarding/pull/28).
+
 Phase 6: [architecture and rollout](docs/architecture/phase-6-assets.md) · [phase report](docs/phase-reports/phase-6.md).
 
 Phase 4 architecture: [client invitation and portal](docs/architecture/phase-4-client-invitation-portal.md).

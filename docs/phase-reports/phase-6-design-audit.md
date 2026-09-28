@@ -14,13 +14,18 @@ management remains a small feature folder; there is no generic file-manager fram
 - Wrap long names and use a 7+5 desktop split that stacks on small screens. No essential action depends on animation.
 - Make scan failure/quarantine feedback an error state, not a green success message.
 - Distinguish completed onboarding awaiting internal review from paused or closed work.
+- Replace offscreen translated skip links with screen-reader-only hiding and a visible keyboard-focus state;
+  full-page captures had exposed the translated links over scrolled content. Verify keyboard entry into the portal.
 - Update stale Phase 4/5 labels on the foundation page and API metadata to Phase 6.
 
 ## Validation
 
 Lint, strict types and 18 frontend unit tests pass locally. Playwright covers 1440×1000, 768×1024,
 375×812 and 812×375, including overflow, browser console, denied/empty/loading and failure states.
-Final browser results and screenshots remain pending; no visual pass is claimed from source inspection alone.
+Implementation CI run 36381813000 passed all 129 browser scenarios with three intentional duplicate-bootstrap
+skips and no retries. Inspected the live approved-file desktop capture, mobile submission/quarantine, tablet
+review and landscape requirement screens. Text and controls reflow without horizontal overflow. The skip-link
+correction identified from those captures is included in the final revision and must pass the same CI gate.
 
 ## Ponytail review
 

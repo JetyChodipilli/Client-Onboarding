@@ -51,7 +51,7 @@ export default function Home() {
     <MotionShell>
       <a
         href="#main-content"
-        className="fixed left-3 top-3 z-50 -translate-y-24 rounded-md bg-foreground px-4 py-3 text-sm font-semibold text-background transition-transform focus:translate-y-0"
+        className="sr-only rounded-md bg-foreground px-4 py-3 text-sm font-semibold text-background focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50"
       >
         Skip to main content
       </a>
