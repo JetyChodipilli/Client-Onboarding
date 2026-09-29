@@ -20,7 +20,7 @@ CREATE TABLE invoices (
  refunded_minor bigint NOT NULL DEFAULT 0 CHECK(refunded_minor BETWEEN 0 AND captured_minor),
  reserved_minor bigint NOT NULL DEFAULT 0 CHECK(reserved_minor BETWEEN 0 AND total_minor),
  status varchar(24) NOT NULL CHECK(status IN ('DRAFT','SENT','VIEWED','PARTIALLY_PAID','PAID','OVERDUE','VOID','CANCELLED','REFUNDED','PARTIALLY_REFUNDED')),
- due_date date NOT NULL, note varchar(2000), sent_at timestamptz, viewed_at timestamptz,
+ due_date date NOT NULL, note varchar(2000), closed_reason varchar(2000), sent_at timestamptz, viewed_at timestamptz,
  idempotency_key varchar(120) NOT NULL, request_hash varchar(64) NOT NULL,
  created_at timestamptz NOT NULL, created_by uuid NOT NULL REFERENCES users(id),
  updated_at timestamptz NOT NULL, updated_by uuid REFERENCES users(id), version bigint NOT NULL DEFAULT 0,

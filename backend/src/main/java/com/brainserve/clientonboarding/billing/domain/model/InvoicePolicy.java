@@ -54,9 +54,9 @@ public final class InvoicePolicy {
     }
     public static Status status(Invoice invoice, long captured, long refunded) {
         if (invoice.closed() || invoice.status() == Status.DRAFT) return invoice.status();
+        if (captured - refunded >= invoice.totalMinor()) return Status.PAID;
         if (captured > 0 && refunded == captured) return Status.REFUNDED;
         if (refunded > 0) return Status.PARTIALLY_REFUNDED;
-        if (captured >= invoice.totalMinor()) return Status.PAID;
         if (captured > 0) return Status.PARTIALLY_PAID;
         return invoice.viewedAt() == null ? Status.SENT : Status.VIEWED;
     }

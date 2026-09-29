@@ -15,6 +15,8 @@ public class RefundService {
     public RefundService(RefundCommands commands,PaymentProvider provider,PaymentRepository repository,BillingLedger ledger){this.commands=commands;this.provider=provider;this.repository=repository;this.ledger=ledger;}
     @PreAuthorize("hasAuthority('PAYMENT_REFUND')")
     public Refund create(TenantPrincipal p,UUID transaction,long amount,String reason,String key){
+        var target=repository.transaction(p.organizationId(),transaction).orElseThrow(BillingErrors::missing);
+        if(target.provider().equals("RAZORPAY") && !provider.available(p.organizationId()))throw BillingErrors.state("Razorpay is not configured for this organization.");
         var prepared=commands.prepare(p,transaction,amount,reason,key);var r=prepared.refund();
         if(!prepared.created() || prepared.transaction().provider().equals("MANUAL"))return r;
         try {return commands.apply(p.organizationId(),provider.createRefund(p.organizationId(),prepared.transaction().providerPaymentId(),r.id(),r.amountMinor()),r.id(),p.userId());}

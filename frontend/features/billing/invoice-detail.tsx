@@ -26,9 +26,11 @@ export function InvoiceDetail({ invoiceId, stepId, projectId, permissions = [] }
   const [error, setError] = useState(""); const [missing, setMissing] = useState(false); const [busy, setBusy] = useState(false); const [page, setPage] = useState(0); const errorRef = useRef<HTMLDivElement>(null);
   const load = useCallback(async () => {
     const dashboard = projectId ? await portalApi.dashboard(projectId) : undefined;
-    let value: InvoiceView;
+    let value: InvoiceView | null;
     try { value = invoiceId ? await billingApi.get(invoiceId) : await billingApi.step(stepId!, projectId); }
     catch (e) { if (e instanceof ApiClientError && e.status === 404 && stepId) { return { dashboard, missing: true, view: undefined, history: undefined }; } throw e; }
+    if (!value) return { dashboard, missing: true, view: undefined, history: undefined };
+    if (projectId && value.invoice.status === "SENT") value = await billingApi.viewed(value.invoice.id);
     const payments = await billingApi.history(value.invoice.id, !!projectId, page);
     return { dashboard, missing: false, view: value, history: payments };
   }, [invoiceId, stepId, projectId, page]);

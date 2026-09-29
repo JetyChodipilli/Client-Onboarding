@@ -28,9 +28,9 @@ public class InvoiceService {
     }
     public View get(TenantPrincipal p,UUID id,boolean client) {return view(ledger.access(p,id,client),true);}
     @PreAuthorize("hasAuthority('INVOICE_READ')")
-    public View internalStep(TenantPrincipal p,UUID step) {steps.read(p.organizationId(),step);return view(repository.byStep(p.organizationId(),step).orElseThrow(BillingErrors::missing),true);}
+    public View internalStep(TenantPrincipal p,UUID step) {steps.read(p.organizationId(),step);return repository.byStep(p.organizationId(),step).map(i->view(i,true)).orElse(null);}
     @PreAuthorize("hasAuthority('CLIENT_PORTAL_READ')")
-    public View forStep(TenantPrincipal p,UUID project,UUID step) {portal.requireStepAccess(p,project,step);var i=repository.byStep(p.organizationId(),step).filter(v->v.status()!=Status.DRAFT).orElseThrow(BillingErrors::missing);return view(i,true);}
+    public View forStep(TenantPrincipal p,UUID project,UUID step) {portal.requireStepAccess(p,project,step);return repository.byStep(p.organizationId(),step).filter(v->v.status()!=Status.DRAFT).map(i->view(i,true)).orElse(null);}
     @PreAuthorize("hasAuthority('INVOICE_CREATE')") @Transactional
     public View create(TenantPrincipal p,Create command,String key) {
         BillingErrors.key(key);String hash=fingerprint.of(command);repository.lockCommands(p.organizationId());
@@ -60,7 +60,7 @@ public class InvoiceService {
         if(i.version()!=version)throw BillingErrors.conflict();
         if((status!=Status.VOID && status!=Status.CANCELLED) || i.closed() || i.capturedMinor()!=0 || i.reservedMinor()!=0)throw BillingErrors.state("Only unpaid invoices without pending payments can be voided or cancelled.");
         if(!repository.update(i,status,0,0,0,p.userId(),clock.instant()))throw BillingErrors.conflict();
-        i=ledger.require(p.organizationId(),id);ledger.sync(i,p.userId());ledger.event(i,"INVOICE_"+status,p.userId(),"API");return view(i,true);
+        repository.closeReason(i,reason.trim());i=ledger.require(p.organizationId(),id);ledger.sync(i,p.userId());ledger.event(i,"INVOICE_"+status,p.userId(),"API");return view(i,true);
     }
     @PreAuthorize("hasAuthority('CLIENT_PORTAL_READ')") @Transactional
     public View viewed(TenantPrincipal p,UUID id) {ledger.access(p,id,true);var i=ledger.lock(p.organizationId(),id);if(i.status()==Status.SENT){repository.update(i,Status.VIEWED,i.capturedMinor(),i.refundedMinor(),i.reservedMinor(),p.userId(),clock.instant());i=ledger.require(p.organizationId(),id);}return view(i,true);}

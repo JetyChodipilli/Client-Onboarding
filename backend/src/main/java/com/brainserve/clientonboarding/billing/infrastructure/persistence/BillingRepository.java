@@ -24,7 +24,7 @@ public class BillingRepository {
         return found;
     }
     public PageSlice<Invoice> page(UUID org,UUID project,String search,Status status,int page,int size,LocalDate today) {
-        String filter=" FROM invoices WHERE organization_id=:org AND (:project IS NULL OR project_id=CAST(:project AS uuid)) AND lower(invoice_number) LIKE :search AND (:status IS NULL OR (CASE WHEN due_date<:today AND total_minor>captured_minor-refunded_minor AND status NOT IN ('DRAFT','VOID','CANCELLED') THEN 'OVERDUE' ELSE status END)=:status)";
+        String filter=" FROM invoices WHERE organization_id=:org AND (CAST(:project AS uuid) IS NULL OR project_id=CAST(:project AS uuid)) AND lower(invoice_number) LIKE :search AND (CAST(:status AS varchar) IS NULL OR (CASE WHEN due_date<:today AND total_minor>captured_minor-refunded_minor AND status NOT IN ('DRAFT','VOID','CANCELLED') THEN 'OVERDUE' ELSE status END)=:status)";
         var args=new HashMap<String,Object>();args.put("org",org);args.put("project",project==null?null:project.toString());args.put("search","%"+search.toLowerCase(Locale.ROOT)+"%");args.put("status",status==null?null:status.name());args.put("today",today);args.put("limit",size);args.put("offset",(long)page*size);
         return new PageSlice<>(jdbc.sql("SELECT *"+filter+" ORDER BY created_at DESC,id LIMIT :limit OFFSET :offset").params(args).query(this::invoice).list(),page,size,jdbc.sql("SELECT count(*)"+filter).params(args).query(Long.class).single());
     }
@@ -40,6 +40,7 @@ public class BillingRepository {
             .params(status.name(),captured,refunded,reserved,status.name(),timestamp(now),status.name(),timestamp(now),timestamp(now),actor,i.organizationId(),i.id(),i.version()).update()==1;
     }
     public void event(Invoice i,String type,String correlation,Instant now) { jdbc.sql("INSERT INTO billing_outbox_events(id,organization_id,invoice_id,event_type,occurred_at,correlation_id) VALUES(?,?,?,?,?,?)").params(UUID.randomUUID(),i.organizationId(),i.id(),type,timestamp(now),correlation).update(); }
+    public void closeReason(Invoice i,String reason) {jdbc.sql("UPDATE invoices SET closed_reason=? WHERE organization_id=? AND id=?").params(reason,i.organizationId(),i.id()).update();}
     private Invoice invoice(ResultSet r,int n)throws SQLException { return new Invoice(r.getObject("id",UUID.class),r.getObject("organization_id",UUID.class),r.getObject("project_id",UUID.class),r.getObject("step_id",UUID.class),r.getString("invoice_number"),r.getString("currency"),Policy.valueOf(r.getString("policy")),r.getLong("subtotal_minor"),r.getLong("tax_minor"),r.getLong("total_minor"),r.getLong("threshold_minor"),r.getLong("captured_minor"),r.getLong("refunded_minor"),r.getLong("reserved_minor"),Status.valueOf(r.getString("status")),r.getObject("due_date",LocalDate.class),r.getString("note"),instant(r,"sent_at"),instant(r,"viewed_at"),instant(r,"created_at"),r.getLong("version")); }
     private Instant instant(ResultSet r,String name)throws SQLException { var t=r.getTimestamp(name);return t==null?null:t.toInstant(); }
 }

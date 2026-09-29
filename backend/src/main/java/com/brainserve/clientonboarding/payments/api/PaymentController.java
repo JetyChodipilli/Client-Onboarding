@@ -24,7 +24,7 @@ public class PaymentController {
     @PostMapping("/client-portal/payments/{id}/confirm")
     ApiSuccess<Map<String,String>> confirm(@PathVariable UUID id,@Valid @RequestBody Confirm r,Authentication auth){payments.confirm(CurrentPrincipal.require(auth),id,r.paymentId(),r.signature());return ok(Map.of("message","Provider evidence checked. Refresh the invoice for its current status."));}
     @PostMapping("/payments/{id}/reconcile")
-    ApiSuccess<Map<String,String>> reconcile(@PathVariable UUID id,@RequestBody Reconcile r,Authentication auth){payments.reconcile(CurrentPrincipal.require(auth),id,r.providerId());return ok(Map.of("message","Payment reconciliation completed."));}
+    ApiSuccess<Map<String,String>> reconcile(@PathVariable UUID id,@Valid @RequestBody Reconcile r,Authentication auth){payments.reconcile(CurrentPrincipal.require(auth),id,r.providerId());return ok(Map.of("message","Payment reconciliation completed."));}
     @PostMapping("/invoices/{id}/sync-workflow")
     ApiSuccess<Map<String,String>> sync(@PathVariable UUID id,Authentication auth){payments.sync(CurrentPrincipal.require(auth),id);return ok(Map.of("message","Workflow readiness recalculated."));}
     @PostMapping("/invoices/{id}/manual-payments")
@@ -34,7 +34,7 @@ public class PaymentController {
     @PostMapping("/payment-transactions/{id}/refunds")
     ApiSuccess<Refund> refund(@PathVariable UUID id,@Valid @RequestBody RefundRequest r,@RequestHeader("Idempotency-Key")String key,Authentication auth){return ok(refunds.create(CurrentPrincipal.require(auth),id,r.amountMinor(),r.reason(),key));}
     @PostMapping("/refunds/{id}/reconcile")
-    ApiSuccess<Refund> reconcileRefund(@PathVariable UUID id,@RequestBody Reconcile r,Authentication auth){return ok(refunds.reconcile(CurrentPrincipal.require(auth),id,r.providerId()));}
+    ApiSuccess<Refund> reconcileRefund(@PathVariable UUID id,@Valid @RequestBody Reconcile r,Authentication auth){return ok(refunds.reconcile(CurrentPrincipal.require(auth),id,r.providerId()));}
     private <T> ApiSuccess<T> ok(T value){return ApiSuccess.of(value,RequestIds.currentRequestId());}
     public record Amount(@Min(100) @Max(100000000000L)long amountMinor){}
     public record Confirm(@NotBlank @Pattern(regexp="pay_[A-Za-z0-9]{1,80}")String paymentId,@NotBlank @Pattern(regexp="[a-fA-F0-9]{64}")String signature){}

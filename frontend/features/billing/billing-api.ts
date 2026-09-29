@@ -4,7 +4,7 @@ const post = (data: unknown, key?: string): RequestInit => ({ method: "POST", he
 export const billingApi = {
   list: (search: string, status: string, page: number, project?: string) => apiRequest<InvoiceView[]>(`/api/v1/invoices?search=${encodeURIComponent(search)}&page=${page}&size=20${status ? `&status=${status}` : ""}${project ? `&projectId=${project}` : ""}`),
   get: (id: string) => apiRequest<InvoiceView>(`/api/v1/invoices/${id}`),
-  step: (step: string, project?: string) => apiRequest<InvoiceView>(project ? `/api/v1/client-portal/projects/${project}/payments/${step}` : `/api/v1/invoices/by-step/${step}`),
+  step: (step: string, project?: string) => apiRequest<InvoiceView | null>(project ? `/api/v1/client-portal/projects/${project}/payments/${step}` : `/api/v1/invoices/by-step/${step}`),
   create: (stepId: string, dueDate: string, note: string, items: InvoiceItem[], key: string) => apiRequest<InvoiceView>("/api/v1/invoices", post({ stepId, dueDate, note, items }, key)),
   publish: (id: string, version: number) => apiRequest<InvoiceView>(`/api/v1/invoices/${id}/send`, post({ version })),
   close: (id: string, version: number, status: InvoiceStatus, reason: string) => apiRequest<InvoiceView>(`/api/v1/invoices/${id}/close`, post({ version, status, reason })),

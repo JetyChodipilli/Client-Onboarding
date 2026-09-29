@@ -139,6 +139,38 @@ class Phase7IntegrationTest {
         try {var a=pool.submit(()->checkoutResult(id,5000,"concurrent-first").andReturn().getResponse().getStatus());var b=pool.submit(()->checkoutResult(id,5000,"concurrent-second").andReturn().getResponse().getStatus());assertThat(a.get(20,java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(200);assertThat(b.get(20,java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(200);assertThat(provider.creates).isEqualTo(1);}
         finally{pool.shutdownNow();}
     }
+    @Test void manualOverrideRefundAndIdempotencyArePermissionBounded()throws Exception {
+        String id=invoice();var body=Map.of("amountMinor",5000,"reference","bank-ref-"+org,"reason","Verified transfer");
+        java.util.function.Function<Cookie,org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder> request=c->post("/api/v1/invoices/"+id+"/manual-payments").cookie(c).with(csrf()).header("Idempotency-Key","manual-command").contentType("application/json");
+        String payload=json.writeValueAsString(body);mvc.perform(request.apply(reader).content(payload)).andExpect(status().isForbidden());mvc.perform(request.apply(foreign).content(payload)).andExpect(status().isNotFound());
+        var t=data(mvc.perform(request.apply(admin).content(payload)).andExpect(status().isOk()));mvc.perform(request.apply(admin).content(payload)).andExpect(status().isOk());
+        mvc.perform(request.apply(admin).content(json.writeValueAsString(Map.of("amountMinor",4000,"reference","different-ref","reason","Changed")))).andExpect(status().isConflict());
+        getJson("/invoices",admin).andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1));getJson("/invoices?status=PARTIALLY_PAID&projectId="+project,admin).andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1));
+        String refundPath="/api/v1/payment-transactions/"+t.get("id").asText()+"/refunds";
+        mvc.perform(post(refundPath).cookie(reader).with(csrf()).header("Idempotency-Key","refund-command").contentType("application/json").content("{\"amountMinor\":100,\"reason\":\"Refund\"}")).andExpect(status().isForbidden());
+        String refundBody="{\"amountMinor\":1000,\"reason\":\"Scope reduction\"}";
+        for(int n=0;n<2;n++)mvc.perform(post(refundPath).cookie(admin).with(csrf()).header("Idempotency-Key","refund-command").contentType("application/json").content(refundBody)).andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("PROCESSED"));
+        getJson("/invoices/"+id,admin).andExpect(jsonPath("$.data.paidMinor").value(4000));getJson("/onboardings/"+onboarding,admin).andExpect(jsonPath("$.data.onboarding.ready").value(false));
+        getJson("/payment-transactions/"+t.get("id").asText()+"/refunds",foreign).andExpect(status().isNotFound());
+    }
+    @Test void duplicateConcurrentEventsAndStaleFailureCannotDoubleCreditOrRegressCapture()throws Exception {
+        String id=invoice();var checkout=checkout(id,5000,"race-capture");capture(checkout,"pay_race");var pool=java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {var a=pool.submit(()->webhook("evt_race","payment.captured","pay_race",true).andReturn().getResponse().getStatus());var b=pool.submit(()->webhook("evt_race","payment.captured","pay_race",true).andReturn().getResponse().getStatus());assertThat(a.get(20,java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(200);assertThat(b.get(20,java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(200);}
+        finally{pool.shutdownNow();}
+        provider.payments.put("pay_race",new com.brainserve.clientonboarding.payments.application.PaymentProvider.Payment("pay_race",checkout.get("orderId").asText(),5000,0,"INR","failed",false));
+        webhook("evt_late_failure","payment.failed","pay_race",true).andExpect(status().isOk());getJson("/invoices/"+id,admin).andExpect(jsonPath("$.data.paidMinor").value(5000));
+        webhook("evt_race","payment.failed","pay_race",true).andExpect(status().isConflict());
+        assertThat(jdbc.sql("SELECT count(*) FROM payment_transactions WHERE organization_id=?").param(org).query(Long.class).single()).isEqualTo(1);
+        assertThat(jdbc.sql("SELECT count(*) FROM billing_outbox_events WHERE organization_id=? AND event_type='PAYMENT_EVIDENCE_RECORDED'").param(org).query(Long.class).single()).isEqualTo(1);
+    }
+    @Test void invoiceCloseRetainsReasonAndPreventsStaleOrPaidMutation()throws Exception {
+        String id=invoice();postJson("/invoices/"+id+"/close",admin,Map.of("version",0,"status","VOID","reason","Changed scope")).andExpect(status().isConflict());
+        postJson("/invoices/"+id+"/close",admin,Map.of("version",1,"status","VOID","reason","Changed scope")).andExpect(status().isOk());
+        assertThat(jdbc.sql("SELECT closed_reason FROM invoices WHERE organization_id=? AND id=?").params(org,UUID.fromString(id)).query(String.class).single()).isEqualTo("Changed scope");
+        checkoutResult(id,5000,"closed-attempt").andExpect(status().isConflict());
+        String replacement=invoice();assertThat(replacement).isNotEqualTo(id);var c=checkout(replacement,5000,"replacement-attempt");capture(c,"pay_replacement");webhook("evt_replacement","payment.captured","pay_replacement",true).andExpect(status().isOk());
+        long version=data(getJson("/invoices/"+replacement,admin)).at("/invoice/version").asLong();postJson("/invoices/"+replacement+"/close",admin,Map.of("version",version,"status","CANCELLED","reason","Cannot discard paid history")).andExpect(status().isConflict());
+    }
     @org.springframework.boot.test.context.TestConfiguration
     static class ProviderConfiguration {
         @org.springframework.context.annotation.Bean @org.springframework.context.annotation.Primary FakeProvider fakeProvider(){return new FakeProvider();}
