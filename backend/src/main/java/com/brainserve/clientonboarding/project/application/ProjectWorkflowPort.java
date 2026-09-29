@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public interface ProjectWorkflowPort {
     ProjectRecord requireProject(UUID organizationId, UUID projectId);
+    void lockProject(UUID organizationId, UUID projectId);
     void lockOnboardingProject(UUID organizationId, UUID projectId);
     void beginOnboarding(UUID organizationId, UUID projectId, long version, UUID actorId, Instant now);
 }

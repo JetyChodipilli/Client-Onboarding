@@ -21,8 +21,8 @@ class EmbeddedPostgresMigrationTest {
                     .locations("classpath:db/migration")
                     .load();
 
-            assertThat(flyway.migrate().migrationsExecuted).isEqualTo(8);
-            assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("8");
+            assertThat(flyway.migrate().migrationsExecuted).isEqualTo(9);
+            assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("9");
         }
     }
 }
