@@ -19,7 +19,9 @@ public class InvoiceController {
     @GetMapping("/invoices")
     ApiSuccess<List<InvoiceService.View>> list(@RequestParam(required=false)UUID projectId,@RequestParam(defaultValue="")String search,@RequestParam(required=false)Status status,@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="20")int size,Authentication auth){var r=invoices.list(CurrentPrincipal.require(auth),projectId,search,status,page,size);return new ApiSuccess<>(true,r.items(),r.meta(),RequestIds.currentRequestId());}
     @PostMapping("/invoices") @ResponseStatus(HttpStatus.CREATED)
-    ApiSuccess<InvoiceService.View> create(@RequestBody InvoiceService.Create r,@RequestHeader("Idempotency-Key")String key,Authentication auth){return ok(invoices.create(CurrentPrincipal.require(auth),r,key));}
+    ApiSuccess<InvoiceService.View> create(@Valid @RequestBody InvoiceService.Create r,@RequestHeader("Idempotency-Key")String key,Authentication auth){return ok(invoices.create(CurrentPrincipal.require(auth),r,key));}
+    @GetMapping("/invoices/by-step/{stepId}")
+    ApiSuccess<InvoiceService.View> step(@PathVariable UUID stepId,Authentication auth){return ok(invoices.internalStep(CurrentPrincipal.require(auth),stepId));}
     @GetMapping("/invoices/{id}")
     ApiSuccess<InvoiceService.View> get(@PathVariable UUID id,Authentication auth){return ok(invoices.get(CurrentPrincipal.require(auth),id,false));}
     @PostMapping("/invoices/{id}/send")

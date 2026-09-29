@@ -3,6 +3,10 @@ INSERT INTO permissions(id,code,description,created_at) VALUES
  ('00000000-0000-0000-0000-000000000037','PAYMENT_RECONCILE','Reconcile provider payments',CURRENT_TIMESTAMP),
  ('00000000-0000-0000-0000-000000000038','PAYMENT_REFUND','Request and reconcile refunds',CURRENT_TIMESTAMP);
 
+-- Verified provider events are system actors, not an impersonated human user.
+ALTER TABLE onboarding_instances ALTER COLUMN updated_by DROP NOT NULL;
+ALTER TABLE onboarding_step_instances ALTER COLUMN updated_by DROP NOT NULL;
+
 CREATE TABLE invoices (
  id uuid PRIMARY KEY, organization_id uuid NOT NULL REFERENCES organizations(id),
  project_id uuid NOT NULL, step_id uuid NOT NULL, invoice_number varchar(80) NOT NULL,

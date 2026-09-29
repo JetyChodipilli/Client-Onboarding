@@ -27,6 +27,8 @@ public class InvoiceService {
         return new PageSlice<>(result.items().stream().map(i->view(i,false)).toList(),page,size,result.totalElements());
     }
     public View get(TenantPrincipal p,UUID id,boolean client) {return view(ledger.access(p,id,client),true);}
+    @PreAuthorize("hasAuthority('INVOICE_READ')")
+    public View internalStep(TenantPrincipal p,UUID step) {steps.read(p.organizationId(),step);return view(repository.byStep(p.organizationId(),step).orElseThrow(BillingErrors::missing),true);}
     @PreAuthorize("hasAuthority('CLIENT_PORTAL_READ')")
     public View forStep(TenantPrincipal p,UUID project,UUID step) {portal.requireStepAccess(p,project,step);var i=repository.byStep(p.organizationId(),step).filter(v->v.status()!=Status.DRAFT).orElseThrow(BillingErrors::missing);return view(i,true);}
     @PreAuthorize("hasAuthority('INVOICE_CREATE')") @Transactional
@@ -66,6 +68,6 @@ public class InvoiceService {
         Status display=i.status()!=Status.DRAFT && !i.closed() && i.balanceMinor()>0 && i.dueDate().isBefore(LocalDate.now(clock))?Status.OVERDUE:i.status();
         return new View(i,detail?repository.items(i.organizationId(),i.id()):List.of(),display,i.paidMinor(),i.balanceMinor(),Math.max(0,i.thresholdMinor()-i.paidMinor()),i.satisfied());
     }
-    public record Create(UUID stepId,LocalDate dueDate,String note,List<ItemInput> items){}
+    public record Create(@jakarta.validation.constraints.NotNull UUID stepId,@jakarta.validation.constraints.NotNull LocalDate dueDate,@jakarta.validation.constraints.Size(max=2000) String note,@jakarta.validation.constraints.NotNull @jakarta.validation.constraints.Size(min=1,max=50) List<ItemInput> items){}
     public record View(Invoice invoice,List<Item> items,Status displayStatus,long paidMinor,long balanceMinor,long thresholdRemainingMinor,boolean requirementSatisfied){}
 }

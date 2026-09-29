@@ -5,11 +5,12 @@ const apiOrigin = new URL(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8
 const storageOrigin = new URL(process.env.NEXT_PUBLIC_ASSET_STORAGE_ORIGIN ?? "http://localhost:9000").origin;
 const contentSecurityPolicy = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${development ? " 'unsafe-eval'" : ""}`,
+  `script-src 'self' 'unsafe-inline' https://checkout.razorpay.com${development ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
-  `connect-src 'self' ${apiOrigin} ${storageOrigin}${development ? " ws: wss:" : ""}`,
+  `connect-src 'self' ${apiOrigin} ${storageOrigin} https://api.razorpay.com https://checkout.razorpay.com${development ? " ws: wss:" : ""}`,
+  "frame-src https://api.razorpay.com https://checkout.razorpay.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
