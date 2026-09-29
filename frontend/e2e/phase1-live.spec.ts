@@ -24,7 +24,7 @@ function currentTotp(secret: string) {
 }
 
 test("live backend: MFA workspace and invitation email to activated client portal", async ({ page, browser }, testInfo) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
   test.skip(testInfo.project.name !== "desktop-chromium");
   const browserErrors: string[] = [];
   page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
@@ -65,6 +65,7 @@ test("live backend: MFA workspace and invitation email to activated client porta
       { key: "website", label: "Website URL", type: "URL", required: true, options: [], condition: { fieldKey: "has_site", operator: "EQUALS", value: "true" } },
     ] }, "PUT");
     await mutate(`/form-versions/${form.definition.id}/publish?version=${formDraft.version}`, {});
+    const requirement = await mutate("/asset-requirements", { name: "Live brand document", instructions: "Provide a safe, final brand document.", allowedMimes: ["text/plain"], maxBytes: 1048576 });
     const client = await mutate("/clients", { name: "Live Portal Client", status: "ACTIVE", version: 0 });
     const contact = await mutate(`/clients/${client.id}/contacts`, { name: "Client Reader", email: "reader@client.test", primary: true, version: 0 });
     const service = await mutate("/services", { code: "PORTAL-LIVE", name: "Portal launch", status: "ACTIVE", version: 0 });
@@ -74,7 +75,8 @@ test("live backend: MFA workspace and invitation email to activated client porta
     const configured = await mutate(`/workflow-template-versions/${versionId}/steps`, {
       version: template.draftVersion.version,
       steps: [{ stepKey: "WELCOME", name: "Read your welcome guide", description: "Confirm that you have read your project welcome guide.", stepType: "WELCOME", displayOrder: 0, required: true, blocking: true, clientVisible: true, requiresReview: false, dependencyMode: "NONE", allowSkip: false, allowReopen: false, configuration: {}, dependencyStepIds: [] },
-        { stepKey: "BRIEF", name: "Complete your questionnaire", stepType: "FORM", displayOrder: 1, required: true, blocking: true, clientVisible: true, requiresReview: true, dependencyMode: "NONE", allowSkip: false, allowReopen: false, configuration: { formVersionId: form.definition.id }, dependencyStepIds: [] }],
+        { stepKey: "BRIEF", name: "Complete your questionnaire", stepType: "FORM", displayOrder: 1, required: true, blocking: true, clientVisible: true, requiresReview: true, dependencyMode: "NONE", allowSkip: false, allowReopen: false, configuration: { formVersionId: form.definition.id }, dependencyStepIds: [] },
+        { stepKey: "ASSET", name: "Share your brand file", stepType: "FILE_UPLOAD", displayOrder: 2, required: true, blocking: true, clientVisible: true, requiresReview: true, dependencyMode: "NONE", allowSkip: false, allowReopen: true, configuration: { assetRequirementId: requirement.id }, dependencyStepIds: [] }],
     }, "PUT");
     await mutate(`/workflow-template-versions/${versionId}/publish?version=${configured.version.version}`, {});
     const onboarding = await mutate(`/projects/${project.id}/onboarding`, { templateVersionId: versionId, projectVersion: project.version });
@@ -98,7 +100,7 @@ test("live backend: MFA workspace and invitation email to activated client porta
     await clientPage.getByRole("link").filter({ has: clientPage.getByRole("heading", { name: "Live portal launch" }) }).click();
     await clientPage.getByRole("button", { name: "Start this step" }).click();
     await clientPage.getByRole("button", { name: "Mark complete" }).click();
-    await expect(clientPage.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "50");
+    await expect(clientPage.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "33");
     await clientPage.getByRole("link", { name: "Open questionnaire" }).click();
     await expect(clientPage.getByRole("heading", { name: "Live project brief" })).toBeVisible();
     await clientPage.getByLabel(/Business name/).fill("First business");
@@ -127,6 +129,37 @@ test("live backend: MFA workspace and invitation email to activated client porta
     await expect(clientPage.getByLabel("Form response status")).toHaveText("APPROVED");
     await clientPage.getByText(/^Submission 1 ·/).click();
     await expect(clientPage.getByText("First business", { exact: true })).toBeVisible();
+    await clientPage.getByRole("link", { name: "Back to project" }).click();
+    await expect(clientPage.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "66");
+    await clientPage.getByRole("link", { name: "Upload project file", exact: true }).click();
+    await expect(clientPage.getByRole("heading", { name: "Live brand document", exact: true })).toBeVisible();
+    // Standard harmless EICAR test string verifies the real ClamAV engine, not a mocked verdict.
+    const eicar = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
+    await clientPage.getByLabel("Choose a file").setInputFiles({ name: "scan-check.txt", mimeType: "text/plain", buffer: Buffer.from(eicar) });
+    await clientPage.getByRole("button", { name: "Upload and submit file" }).click();
+    await expect(clientPage.getByLabel("Asset status")).toHaveText("QUARANTINED", { timeout: 90_000 });
+    await expect(clientPage.getByRole("button", { name: /Download/ })).toHaveCount(0);
+    await clientPage.getByLabel("Choose a file").setInputFiles({ name: "brand.txt", mimeType: "text/plain", buffer: Buffer.from("Initial safe brand guide") });
+    await clientPage.getByRole("button", { name: "Upload and submit file" }).click();
+    await expect(clientPage.getByLabel("Asset status")).toHaveText("SUBMITTED", { timeout: 90_000 });
+    const assetStep = onboarding.steps.find((step: { stepType: string }) => step.stepType === "FILE_UPLOAD");
+    await page.goto(`/app/assets/responses/${assetStep.id}`);
+    await page.getByLabel("Feedback (required for revision)").fill("Please provide the final brand document.");
+    await page.getByRole("button", { name: "Request revision", exact: true }).click();
+    await expect(page.getByText("Revision requested. The client can upload a new version.")).toBeVisible();
+    await clientPage.reload();
+    await clientPage.getByLabel("Choose a file").setInputFiles({ name: "final-brand.txt", mimeType: "text/plain", buffer: Buffer.from("Final safe brand guide") });
+    await clientPage.getByRole("button", { name: "Upload and submit file" }).click();
+    await expect(clientPage.getByLabel("Asset status")).toHaveText("SUBMITTED", { timeout: 90_000 });
+    await page.reload(); await page.getByRole("button", { name: "Approve file", exact: true }).click();
+    await expect(page.getByText("File approved. The workflow step is complete.")).toBeVisible();
+    await clientPage.reload(); await expect(clientPage.getByLabel("Asset status")).toHaveText("APPROVED");
+    const downloadEvent = clientPage.waitForEvent("download");
+    await clientPage.getByRole("button", { name: "Download current file", exact: true }).click();
+    const downloaded = await downloadEvent; expect(downloaded.suggestedFilename()).toBe("final-brand.txt");
+    const downloadPath = await downloaded.path();
+    expect(await (await import("node:fs/promises")).readFile(downloadPath!, "utf8")).toBe("Final safe brand guide");
+    await clientPage.screenshot({ path: testInfo.outputPath("live-asset-approved.png"), fullPage: true });
     await clientPage.getByRole("link", { name: "Back to project" }).click();
     await expect(clientPage.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "100");
     expect((await clientContext.request.get(`${base}/clients`)).status()).toBe(403);

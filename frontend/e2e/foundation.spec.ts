@@ -12,7 +12,7 @@ test.describe("platform foundation", () => {
     await expect(
       page.getByRole("heading", { name: "Make every client start feel clear." }),
     ).toBeVisible();
-    await expect(page.getByText("Phase 4 implemented")).toBeVisible();
+    await expect(page.getByText("Phase 6 implemented")).toBeVisible();
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,

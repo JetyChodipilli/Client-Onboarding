@@ -24,6 +24,7 @@ const nav: NavItem[] = [
   { href: "/app/services", label: "Services", icon: Settings2, permissions: ["SERVICE_MANAGE", "PROJECT_CREATE", "WORKFLOW_MANAGE"] },
   { href: "/app/workflows", label: "Workflows", icon: Network, permissions: ["WORKFLOW_READ"] },
   { href: "/app/forms", label: "Forms", icon: ScrollText, permissions: ["FORM_READ", "FORM_MANAGE"] },
+  { href: "/app/assets", label: "Assets", icon: BriefcaseBusiness, permissions: ["ASSET_READ", "ASSET_MANAGE", "ASSET_REVIEW"] },
   { href: "/app/settings/organization", label: "Organization", icon: Building2, permission: "ORGANIZATION_READ" },
   { href: "/app/settings/members", label: "Members", icon: Users, permission: "USER_MANAGE" },
   { href: "/app/settings/roles", label: "Roles", icon: KeyRound, permission: "ROLE_MANAGE" },
@@ -43,7 +44,7 @@ export function InternalShell({ children }: { children: React.ReactNode }) {
     && (!item.permissions || item.permissions.some((permission) => user.permissions.includes(permission))));
   return (
     <UserContext.Provider value={user}>
-      <a href="#workspace-main" className="fixed left-3 top-3 z-50 -translate-y-24 rounded-md bg-foreground px-4 py-3 text-sm font-semibold text-background transition-transform focus:translate-y-0">Skip to workspace</a>
+      <a href="#workspace-main" className="sr-only rounded-md bg-foreground px-4 py-3 text-sm font-semibold text-background focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50">Skip to workspace</a>
       <div className="min-h-dvh bg-background lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
         <aside className="border-b bg-card/80 lg:sticky lg:top-0 lg:h-dvh lg:border-b-0 lg:border-r">
           <div className="flex min-h-20 items-center justify-between gap-3 px-5 lg:border-b">

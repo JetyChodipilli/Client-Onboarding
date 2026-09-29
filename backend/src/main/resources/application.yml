@@ -70,6 +70,16 @@ logging:
     com.brainserve.clientonboarding: INFO
 
 app:
+  assets:
+    enabled: ${ASSET_STORAGE_ENABLED:false}
+    endpoint: ${ASSET_STORAGE_ENDPOINT:http://localhost:9000}
+    public-endpoint: ${ASSET_STORAGE_PUBLIC_ENDPOINT:http://localhost:9000}
+    region: ${ASSET_STORAGE_REGION:us-east-1}
+    bucket: ${ASSET_STORAGE_BUCKET:onboarding-assets}
+    access-key: ${ASSET_STORAGE_ACCESS_KEY:}
+    secret-key: ${ASSET_STORAGE_SECRET_KEY:}
+    scanner-host: ${ASSET_SCANNER_HOST:localhost}
+    scanner-port: ${ASSET_SCANNER_PORT:3310}
   security:
     cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
     public-app-url: ${PUBLIC_APP_URL:http://localhost:3000}

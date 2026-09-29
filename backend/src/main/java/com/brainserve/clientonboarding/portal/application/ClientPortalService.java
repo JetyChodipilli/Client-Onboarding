@@ -412,7 +412,9 @@ public class ClientPortalService {
         }
         boolean actionable = active && (ClientStepPolicy.informational(step.stepType())
                 || step.stepType() == com.brainserve.clientonboarding.workflow.domain.model.TemplateStep.StepType.FORM
-                    && step.configuration().containsKey("formVersionId"))
+                    && step.configuration().containsKey("formVersionId")
+                || step.stepType() == com.brainserve.clientonboarding.workflow.domain.model.TemplateStep.StepType.FILE_UPLOAD
+                    && step.configuration().containsKey("assetRequirementId"))
                 && ClientStepPolicy.actionable(step.status());
         return new PortalStep(step.id(), step.name(), step.description(), step.stepType().name(),
                 step.status().name(), step.required(), step.blocking(), step.dueAt(), waitingFor, reason,

@@ -15,6 +15,7 @@ Each aggregate owns one lifecycle. A transition in one machine may trigger a com
 | Contract | `DRAFT`, `GENERATED`, `SENT`, `VIEWED`, `SIGNED`, `DECLINED`, `EXPIRED`, `VOID`, `CANCELLED` | Sent versions are immutable. |
 | Form submission | `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `NEEDS_REVISION`, `RESUBMITTED`, `APPROVED` | Earlier submissions remain traceable. |
 | Asset | `REQUESTED`, `UPLOADED`, `SCANNING`, `SUBMITTED`, `UNDER_REVIEW`, `NEEDS_REVISION`, `REPLACED`, `APPROVED`, `QUARANTINED`, `REJECTED` | A replacement creates a new version; unsafe files are unavailable. |
+| Asset scan | `PENDING`, `SCANNING`, `CLEAN`, `INFECTED`, `ERROR` | Scan safety is independent of business review. Scanner/storage errors remain retryable and never imply a clean result. |
 | Platform access | `NOT_STARTED`, `REQUESTED`, `CLIENT_SUBMITTED`, `UNDER_VERIFICATION`, `NEEDS_REVISION`, `VERIFIED`, `WAIVED` | Clients may submit; only permitted internal users verify. |
 | Task | `TODO`, `IN_PROGRESS`, `BLOCKED`, `IN_REVIEW`, `COMPLETED`, `CANCELLED` | Tasks do not replace onboarding-step state. |
 
