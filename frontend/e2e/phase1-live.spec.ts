@@ -24,7 +24,7 @@ function currentTotp(secret: string) {
 }
 
 test("live backend: MFA workspace and invitation email to activated client portal", async ({ page, browser }, testInfo) => {
-  test.setTimeout(240_000);
+  test.setTimeout(300_000);
   test.skip(testInfo.project.name !== "desktop-chromium");
   const browserErrors: string[] = [];
   page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
@@ -76,7 +76,8 @@ test("live backend: MFA workspace and invitation email to activated client porta
       version: template.draftVersion.version,
       steps: [{ stepKey: "WELCOME", name: "Read your welcome guide", description: "Confirm that you have read your project welcome guide.", stepType: "WELCOME", displayOrder: 0, required: true, blocking: true, clientVisible: true, requiresReview: false, dependencyMode: "NONE", allowSkip: false, allowReopen: false, configuration: {}, dependencyStepIds: [] },
         { stepKey: "BRIEF", name: "Complete your questionnaire", stepType: "FORM", displayOrder: 1, required: true, blocking: true, clientVisible: true, requiresReview: true, dependencyMode: "NONE", allowSkip: false, allowReopen: false, configuration: { formVersionId: form.definition.id }, dependencyStepIds: [] },
-        { stepKey: "ASSET", name: "Share your brand file", stepType: "FILE_UPLOAD", displayOrder: 2, required: true, blocking: true, clientVisible: true, requiresReview: true, dependencyMode: "NONE", allowSkip: false, allowReopen: true, configuration: { assetRequirementId: requirement.id }, dependencyStepIds: [] }],
+        { stepKey: "ASSET", name: "Share your brand file", stepType: "FILE_UPLOAD", displayOrder: 2, required: true, blocking: true, clientVisible: true, requiresReview: true, dependencyMode: "NONE", allowSkip: false, allowReopen: true, configuration: { assetRequirementId: requirement.id }, dependencyStepIds: [] },
+        { stepKey: "PAYMENT", name: "Pay your project invoice", stepType: "PAYMENT", displayOrder: 3, required: true, blocking: true, clientVisible: true, requiresReview: false, dependencyMode: "NONE", allowSkip: false, allowReopen: false, configuration: { paymentPolicy: "MANUAL" }, dependencyStepIds: [] }],
     }, "PUT");
     await mutate(`/workflow-template-versions/${versionId}/publish?version=${configured.version.version}`, {});
     const onboarding = await mutate(`/projects/${project.id}/onboarding`, { templateVersionId: versionId, projectVersion: project.version });
@@ -100,7 +101,7 @@ test("live backend: MFA workspace and invitation email to activated client porta
     await clientPage.getByRole("link").filter({ has: clientPage.getByRole("heading", { name: "Live portal launch" }) }).click();
     await clientPage.getByRole("button", { name: "Start this step" }).click();
     await clientPage.getByRole("button", { name: "Mark complete" }).click();
-    await expect(clientPage.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "33");
+    await expect(clientPage.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "25");
     await clientPage.getByRole("link", { name: "Open questionnaire" }).click();
     await expect(clientPage.getByRole("heading", { name: "Live project brief" })).toBeVisible();
     await clientPage.getByLabel(/Business name/).fill("First business");
@@ -130,7 +131,7 @@ test("live backend: MFA workspace and invitation email to activated client porta
     await clientPage.getByText(/^Submission 1 ·/).click();
     await expect(clientPage.getByText("First business", { exact: true })).toBeVisible();
     await clientPage.getByRole("link", { name: "Back to project" }).click();
-    await expect(clientPage.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "66");
+    await expect(clientPage.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "50");
     await clientPage.getByRole("link", { name: "Upload project file", exact: true }).click();
     await expect(clientPage.getByRole("heading", { name: "Live brand document", exact: true })).toBeVisible();
     // Standard harmless EICAR test string verifies the real ClamAV engine, not a mocked verdict.
@@ -161,7 +162,41 @@ test("live backend: MFA workspace and invitation email to activated client porta
     expect(await (await import("node:fs/promises")).readFile(downloadPath!, "utf8")).toBe("Final safe brand guide");
     await clientPage.screenshot({ path: testInfo.outputPath("live-asset-approved.png"), fullPage: true });
     await clientPage.getByRole("link", { name: "Back to project" }).click();
-    await expect(clientPage.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "100");
+    await expect(clientPage.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "75");
+    const paymentStep = onboarding.steps.find((step: { stepType: string }) => step.stepType === "PAYMENT");
+    await page.goto(`/app/invoices/steps/${paymentStep.id}`);
+    await page.getByLabel("Description", { exact: true }).fill("Live project delivery");
+    await page.getByLabel("Unit price (INR)").fill("100");
+    await page.getByLabel("Due date", { exact: true }).fill(new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10));
+    await page.getByRole("button", { name: "Create draft invoice" }).click();
+    await page.getByRole("button", { name: "Publish to client portal" }).click();
+    await expect(page.getByText("Invoice published in the client portal.")).toBeVisible();
+    await clientPage.getByRole("link", { name: "Review invoice", exact: true }).click();
+    await expect(clientPage.getByRole("heading", { name: "Invoice", exact: true })).toBeVisible();
+    await expect(clientPage.getByText(/Contact your project team for payment instructions/)).toBeVisible();
+    for (const reference of ["live-first-transfer", "live-second-transfer"]) {
+      await page.getByRole("button", { name: "Record offline payment" }).click();
+      await page.getByLabel("Amount received (INR)").fill("50");
+      await page.getByLabel("Payment reference", { exact: true }).fill(reference);
+      await page.getByLabel("Reason", { exact: true }).fill("Verified bank transfer in the browser test fixture");
+      await page.getByRole("button", { name: "Confirm offline payment" }).click();
+      await expect(page.getByText("Offline payment recorded.")).toBeVisible();
+    }
+    await clientPage.reload();await expect(clientPage.getByText("Your invoice is fully paid.")).toBeVisible();
+    await page.getByText("Review or request refund", { exact: true }).first().click();
+    const refundControls = page.locator("details[open]");
+    await refundControls.getByLabel("Refund amount (INR)").fill("20");
+    await refundControls.getByLabel("Refund reason", { exact: true }).fill("Verified offline refund for reduced scope");
+    await refundControls.getByRole("button", { name: "Confirm refund", exact: true }).click();
+    await expect(refundControls.getByText("Refund status updated. Pending refunds are not treated as completed.")).toBeVisible();
+    await clientPage.reload();await expect(clientPage.getByText("PARTIALLY REFUNDED", { exact: true }).first()).toBeVisible();
+    await clientPage.getByRole("link", { name: "Back to project" }).click();
+    await expect(clientPage.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "75");
+    await page.getByRole("button", { name: "Record offline payment" }).click();
+    await page.getByLabel("Amount received (INR)").fill("20");await page.getByLabel("Payment reference", { exact: true }).fill("live-final-transfer");await page.getByLabel("Reason", { exact: true }).fill("Recollection verified");await page.getByRole("button", { name: "Confirm offline payment" }).click();
+    await expect(page.getByText("Offline payment recorded.")).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("live-billing-refund-recollection.png"), fullPage: true });
+    await clientPage.reload();await expect(clientPage.getByRole("progressbar", { name: "Onboarding progress" })).toHaveAttribute("aria-valuenow", "100");
     expect((await clientContext.request.get(`${base}/clients`)).status()).toBe(403);
     await clientPage.getByRole("button", { name: "Sign out" }).click();
     await expect(clientPage).toHaveURL(/\/client\/login$/);

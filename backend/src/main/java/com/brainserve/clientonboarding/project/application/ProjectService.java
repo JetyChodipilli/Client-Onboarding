@@ -129,6 +129,11 @@ public class ProjectService implements ProjectWorkflowPort {
     }
 
     @Override
+    public void lockProject(UUID organizationId, UUID projectId) {
+        projects.lockStatus(organizationId, projectId).orElseThrow(this::notFound);
+    }
+
+    @Override
     public void lockOnboardingProject(UUID organizationId, UUID projectId) {
         // Held until the calling use-case transaction commits; serializes lifecycle changes with step updates.
         var status = projects.lockStatus(organizationId, projectId).orElseThrow(this::notFound);

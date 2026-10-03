@@ -414,7 +414,9 @@ public class ClientPortalService {
                 || step.stepType() == com.brainserve.clientonboarding.workflow.domain.model.TemplateStep.StepType.FORM
                     && step.configuration().containsKey("formVersionId")
                 || step.stepType() == com.brainserve.clientonboarding.workflow.domain.model.TemplateStep.StepType.FILE_UPLOAD
-                    && step.configuration().containsKey("assetRequirementId"))
+                    && step.configuration().containsKey("assetRequirementId")
+                || step.stepType() == com.brainserve.clientonboarding.workflow.domain.model.TemplateStep.StepType.PAYMENT
+                && step.configuration().containsKey("paymentPolicy"))
                 && ClientStepPolicy.actionable(step.status());
         return new PortalStep(step.id(), step.name(), step.description(), step.stepType().name(),
                 step.status().name(), step.required(), step.blocking(), step.dueAt(), waitingFor, reason,

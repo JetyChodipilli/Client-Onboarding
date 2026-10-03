@@ -41,7 +41,8 @@ public class SecurityConfiguration {
                 .secure(properties.sessionCookieSecure()));
 
         return http
-                .csrf(csrf -> csrf.csrfTokenRepository(csrfRepository))
+                .csrf(csrf -> csrf.csrfTokenRepository(csrfRepository).ignoringRequestMatchers(request ->
+                        "POST".equals(request.getMethod()) && request.getRequestURI().matches("/api/v1/webhooks/payments/razorpay/[0-9a-fA-F-]{36}")))
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .requestCache(cache -> cache.disable())
@@ -52,6 +53,7 @@ public class SecurityConfiguration {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(HttpMethod.POST,"/api/v1/webhooks/payments/razorpay/*").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/health/live", "/health/ready", "/api/v1/platform/info",
                                 "/api/v1/auth/csrf", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**")
